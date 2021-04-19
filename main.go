@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -211,6 +212,117 @@ func walletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 	log.Info("GET /metrics/wallet?address=", address)
 }
 
+func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	address := r.URL.Query().Get("address")
+	myAddress, err := sdk.ValAddressFromBech32(address)
+	if err != nil {
+		log.Error("Could not get address for \"", address, "\", got error: ", err)
+		return
+	}
+
+	validatorDelegationsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_delegations",
+			Help: "Delegations of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "denom", "delegated_by"},
+	)
+
+	validatorTokensGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_tokens",
+			Help: "Tokens of the Cosmos-based blockchain validator",
+		},
+		[]string{"address"},
+	)
+
+	validatorDelegatorSharesGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_delegators_shares",
+			Help: "Delegators shares of the Cosmos-based blockchain validator",
+		},
+		[]string{"address"},
+	)
+
+	validatorCommissionRateGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_commission_rate",
+			Help: "Commission rate of the Cosmos-based blockchain validator",
+		},
+		[]string{"address"},
+	)
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(validatorDelegationsGauge)
+	registry.MustRegister(validatorTokensGauge)
+	registry.MustRegister(validatorDelegatorSharesGauge)
+	registry.MustRegister(validatorCommissionRateGauge)
+
+	var wg sync.WaitGroup
+
+	go func() {
+		defer wg.Done()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingRes, err := stakingClient.ValidatorDelegations(
+			context.Background(),
+			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get delegations for \"", address, "\", got error: ", err)
+			return
+		}
+
+		for _, delegation := range stakingRes.DelegationResponses {
+			validatorDelegationsGauge.With(prometheus.Labels{
+				"address":      delegation.Delegation.ValidatorAddress,
+				"denom":        delegation.Balance.Denom,
+				"delegated_by": delegation.Delegation.DelegatorAddress,
+			}).Set(float64(delegation.Balance.Amount.Int64()))
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		validator, err := stakingClient.Validator(
+			context.Background(),
+			&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get delegations for \"", address, "\", got error: ", err)
+			return
+		}
+
+		validatorTokensGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+		}).Set(float64(validator.Validator.Tokens.Int64()))
+
+		validatorDelegatorSharesGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+		}).Set(float64(validator.Validator.DelegatorShares.RoundInt64()))
+
+		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+		rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64)
+		if err != nil {
+			log.Error("Could not get commission rate for \"", address, "\", got error: ", err)
+		} else {
+			validatorCommissionRateGauge.With(prometheus.Labels{
+				"address": validator.Validator.OperatorAddress,
+			}).Set(rate)
+		}
+	}()
+	wg.Add(1)
+
+	wg.Wait()
+
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	h.ServeHTTP(w, r)
+	log.Info("GET /metrics/validator?address=", address)
+}
+
 func main() {
 	flag.Parse()
 
@@ -232,6 +344,10 @@ func main() {
 
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
 		walletHandler(w, r, grpcConn)
+	})
+
+	http.HandleFunc("/metrics/validator", func(w http.ResponseWriter, r *http.Request) {
+		validatorHandler(w, r, grpcConn)
 	})
 
 	log.Info("Listening on ", *listenAddress)

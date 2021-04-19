@@ -259,12 +259,21 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "denom"},
 	)
 
+	validatorUnbondingsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_unbondings",
+			Help: "Unbondings of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "denom", "unbonded_by"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
 	registry.MustRegister(validatorDelegatorSharesGauge)
 	registry.MustRegister(validatorCommissionRateGauge)
 	registry.MustRegister(validatorCommissionGauge)
+	registry.MustRegister(validatorUnbondingsGauge)
 
 	var wg sync.WaitGroup
 
@@ -342,6 +351,34 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"address": address,
 				"denom":   commission.Denom,
 			}).Set(float64(commission.Amount.RoundInt64()))
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingRes, err := stakingClient.ValidatorUnbondingDelegations(
+			context.Background(),
+			&stakingtypes.QueryValidatorUnbondingDelegationsRequest{ValidatorAddr: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get unbonding delegations for \"", address, "\", got error: ", err)
+			return
+		}
+
+		for _, unbonding := range stakingRes.UnbondingResponses {
+			var sum float64 = 0
+			for _, entry := range unbonding.Entries {
+				sum += float64(entry.Balance.Int64())
+			}
+
+			validatorUnbondingsGauge.With(prometheus.Labels{
+				"address":     unbonding.ValidatorAddress,
+				"denom":       *denom, // unbonding does not have denom in response for some reason
+				"unbonded_by": unbonding.DelegatorAddress,
+			}).Set(sum)
 		}
 	}()
 	wg.Add(1)

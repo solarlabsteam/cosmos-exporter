@@ -267,6 +267,14 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "denom", "unbonded_by"},
 	)
 
+	validatorRedelegationsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_redelegations",
+			Help: "Redelegations of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "denom", "redelegated_by", "redelegated_to"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
@@ -274,6 +282,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorCommissionRateGauge)
 	registry.MustRegister(validatorCommissionGauge)
 	registry.MustRegister(validatorUnbondingsGauge)
+	registry.MustRegister(validatorRedelegationsGauge)
 
 	var wg sync.WaitGroup
 
@@ -378,6 +387,35 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"address":     unbonding.ValidatorAddress,
 				"denom":       *denom, // unbonding does not have denom in response for some reason
 				"unbonded_by": unbonding.DelegatorAddress,
+			}).Set(sum)
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingRes, err := stakingClient.Redelegations(
+			context.Background(),
+			&stakingtypes.QueryRedelegationsRequest{SrcValidatorAddr: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get redelegations for \"", address, "\", got error: ", err)
+			return
+		}
+
+		for _, redelegation := range stakingRes.RedelegationResponses {
+			var sum float64 = 0
+			for _, entry := range redelegation.Entries {
+				sum += float64(entry.Balance.Int64())
+			}
+
+			validatorRedelegationsGauge.With(prometheus.Labels{
+				"address":        redelegation.Redelegation.ValidatorSrcAddress,
+				"denom":          *denom, // redelegation does not have denom in response for some reason
+				"redelegated_by": redelegation.Redelegation.DelegatorAddress,
+				"redelegated_to": redelegation.Redelegation.ValidatorDstAddress,
 			}).Set(sum)
 		}
 	}()

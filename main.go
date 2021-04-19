@@ -251,12 +251,20 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		},
 		[]string{"address"},
 	)
+	validatorCommissionGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_commission",
+			Help: "Commission of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "denom"},
+	)
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
 	registry.MustRegister(validatorDelegatorSharesGauge)
 	registry.MustRegister(validatorCommissionRateGauge)
+	registry.MustRegister(validatorCommissionGauge)
 
 	var wg sync.WaitGroup
 
@@ -312,6 +320,28 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			validatorCommissionRateGauge.With(prometheus.Labels{
 				"address": validator.Validator.OperatorAddress,
 			}).Set(rate)
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionRes, err := distributionClient.ValidatorCommission(
+			context.Background(),
+			&distributiontypes.QueryValidatorCommissionRequest{ValidatorAddress: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get commission for \"", address, "\", got error: ", err)
+			return
+		}
+
+		for _, commission := range distributionRes.Commission.Commission {
+			validatorCommissionGauge.With(prometheus.Labels{
+				"address": address,
+				"denom":   commission.Denom,
+			}).Set(float64(commission.Amount.RoundInt64()))
 		}
 	}()
 	wg.Add(1)

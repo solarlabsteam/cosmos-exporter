@@ -12,6 +12,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -61,11 +62,20 @@ func walletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		[]string{"address", "denom", "unbonded_from"},
 	)
 
+	walletRewardsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_wallet_rewards",
+			Help: "Rewards of the Cosmos-based blockchain wallet",
+		},
+		[]string{"address", "denom", "validator_address"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(walletBalanceGauge)
 	registry.MustRegister(walletDelegationGauge)
 	registry.MustRegister(walletUnbondingsGauge)
 	registry.MustRegister(walletRedelegationGauge)
+	registry.MustRegister(walletRewardsGauge)
 
 	var wg sync.WaitGroup
 
@@ -165,6 +175,31 @@ func walletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				"redelegated_from": redelegation.Redelegation.ValidatorSrcAddress,
 				"redelegated_to":   redelegation.Redelegation.ValidatorDstAddress,
 			}).Set(sum)
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionRes, err := distributionClient.DelegationTotalRewards(
+			context.Background(),
+			&distributiontypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: myAddress.String()},
+		)
+		if err != nil {
+			log.Error("Could not get rewards for \"", address, "\", got error: ", err)
+			return
+		}
+
+		for _, reward := range distributionRes.Rewards {
+			for _, entry := range reward.Reward {
+				walletRewardsGauge.With(prometheus.Labels{
+					"address":           address,
+					"denom":             entry.Denom,
+					"validator_address": reward.ValidatorAddress,
+				}).Set(float64(entry.Amount.RoundInt64()))
+			}
 		}
 	}()
 	wg.Add(1)

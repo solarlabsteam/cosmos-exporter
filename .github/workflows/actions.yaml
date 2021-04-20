@@ -6,4 +6,4 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@v1
-      - run: go build mail.go
+      - run: go build main.go

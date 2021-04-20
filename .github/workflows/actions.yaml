@@ -6,4 +6,5 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@v1
+      - run: go install
       - run: go vet

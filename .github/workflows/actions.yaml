@@ -6,4 +6,5 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - uses: actions/setup-go@v1
+      - run: go mod download
       - run: go build main.go

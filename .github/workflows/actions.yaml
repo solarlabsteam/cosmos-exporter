@@ -1,0 +1,9 @@
+name: GitHub Actions
+on: [push]
+jobs:
+  go-vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-go@v1
+      - run: go vet

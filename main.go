@@ -225,7 +225,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_delegations",
 			Help: "Delegations of the Cosmos-based blockchain validator",
 		},
-		[]string{"address", "denom", "delegated_by"},
+		[]string{"address", "moniker", "denom", "delegated_by"},
 	)
 
 	validatorTokensGauge := prometheus.NewGaugeVec(
@@ -233,7 +233,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_tokens",
 			Help: "Tokens of the Cosmos-based blockchain validator",
 		},
-		[]string{"address"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorDelegatorSharesGauge := prometheus.NewGaugeVec(
@@ -241,7 +241,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_delegators_shares",
 			Help: "Delegators shares of the Cosmos-based blockchain validator",
 		},
-		[]string{"address"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorCommissionRateGauge := prometheus.NewGaugeVec(
@@ -249,14 +249,14 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_commission_rate",
 			Help: "Commission rate of the Cosmos-based blockchain validator",
 		},
-		[]string{"address"},
+		[]string{"address", "moniker"},
 	)
 	validatorCommissionGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "cosmos_validator_commission",
 			Help: "Commission of the Cosmos-based blockchain validator",
 		},
-		[]string{"address", "denom"},
+		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorUnbondingsGauge := prometheus.NewGaugeVec(
@@ -264,7 +264,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_unbondings",
 			Help: "Unbondings of the Cosmos-based blockchain validator",
 		},
-		[]string{"address", "denom", "unbonded_by"},
+		[]string{"address", "moniker", "denom", "unbonded_by"},
 	)
 
 	validatorRedelegationsGauge := prometheus.NewGaugeVec(
@@ -272,7 +272,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Name: "cosmos_validator_redelegations",
 			Help: "Redelegations of the Cosmos-based blockchain validator",
 		},
-		[]string{"address", "denom", "redelegated_by", "redelegated_to"},
+		[]string{"address", "moniker", "denom", "redelegated_by", "redelegated_to"},
 	)
 
 	registry := prometheus.NewRegistry()
@@ -283,6 +283,38 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorCommissionGauge)
 	registry.MustRegister(validatorUnbondingsGauge)
 	registry.MustRegister(validatorRedelegationsGauge)
+
+	// doing this not in goroutine as we'll need the moniker value later
+	stakingClient := stakingtypes.NewQueryClient(grpcConn)
+	validator, err := stakingClient.Validator(
+		context.Background(),
+		&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
+	)
+	if err != nil {
+		log.Error("Could not get validator for \"", address, "\", got error: ", err)
+		return
+	}
+
+	validatorTokensGauge.With(prometheus.Labels{
+		"address": validator.Validator.OperatorAddress,
+		"moniker": validator.Validator.Description.Moniker,
+	}).Set(float64(validator.Validator.Tokens.Int64()))
+
+	validatorDelegatorSharesGauge.With(prometheus.Labels{
+		"address": validator.Validator.OperatorAddress,
+		"moniker": validator.Validator.Description.Moniker,
+	}).Set(float64(validator.Validator.DelegatorShares.RoundInt64()))
+
+	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+	rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64)
+	if err != nil {
+		log.Error("Could not get commission rate for \"", address, "\", got error: ", err)
+	} else {
+		validatorCommissionRateGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+			"moniker": validator.Validator.Description.Moniker,
+		}).Set(rate)
+	}
 
 	var wg sync.WaitGroup
 
@@ -301,43 +333,11 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		for _, delegation := range stakingRes.DelegationResponses {
 			validatorDelegationsGauge.With(prometheus.Labels{
+				"moniker":      validator.Validator.Description.Moniker,
 				"address":      delegation.Delegation.ValidatorAddress,
 				"denom":        delegation.Balance.Denom,
 				"delegated_by": delegation.Delegation.DelegatorAddress,
 			}).Set(float64(delegation.Balance.Amount.Int64()))
-		}
-	}()
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
-		validator, err := stakingClient.Validator(
-			context.Background(),
-			&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
-		)
-		if err != nil {
-			log.Error("Could not get validator for \"", address, "\", got error: ", err)
-			return
-		}
-
-		validatorTokensGauge.With(prometheus.Labels{
-			"address": validator.Validator.OperatorAddress,
-		}).Set(float64(validator.Validator.Tokens.Int64()))
-
-		validatorDelegatorSharesGauge.With(prometheus.Labels{
-			"address": validator.Validator.OperatorAddress,
-		}).Set(float64(validator.Validator.DelegatorShares.RoundInt64()))
-
-		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
-		rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64)
-		if err != nil {
-			log.Error("Could not get commission rate for \"", address, "\", got error: ", err)
-		} else {
-			validatorCommissionRateGauge.With(prometheus.Labels{
-				"address": validator.Validator.OperatorAddress,
-			}).Set(rate)
 		}
 	}()
 	wg.Add(1)
@@ -358,6 +358,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		for _, commission := range distributionRes.Commission.Commission {
 			validatorCommissionGauge.With(prometheus.Labels{
 				"address": address,
+				"moniker": validator.Validator.Description.Moniker,
 				"denom":   commission.Denom,
 			}).Set(float64(commission.Amount.RoundInt64()))
 		}
@@ -385,6 +386,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 			validatorUnbondingsGauge.With(prometheus.Labels{
 				"address":     unbonding.ValidatorAddress,
+				"moniker":     validator.Validator.Description.Moniker,
 				"denom":       *denom, // unbonding does not have denom in response for some reason
 				"unbonded_by": unbonding.DelegatorAddress,
 			}).Set(sum)
@@ -413,6 +415,7 @@ func validatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 			validatorRedelegationsGauge.With(prometheus.Labels{
 				"address":        redelegation.Redelegation.ValidatorSrcAddress,
+				"moniker":        validator.Validator.Description.Moniker,
 				"denom":          *denom, // redelegation does not have denom in response for some reason
 				"redelegated_by": redelegation.Redelegation.DelegatorAddress,
 				"redelegated_to": redelegation.Redelegation.ValidatorDstAddress,

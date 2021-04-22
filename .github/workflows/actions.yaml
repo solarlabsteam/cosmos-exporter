@@ -8,7 +8,7 @@ jobs:
       - uses: actions/setup-go@v2
       - run: go version
       - run: go mod download
-      - run: go build main.go
+      - run: go build
   go-vet:
     runs-on: ubuntu-latest
     steps:

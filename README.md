@@ -91,7 +91,7 @@ scrape-configs:
       - source_labels: [__param_address]
         target_label: instance
       - target_label: __address__
-        replacement: <node hostname or IP>:9400
+        replacement: <node hostname or IP>:9300
   # specific wallet(s)
   - job_name:       'wallet'
     scrape_interval: 15s
@@ -105,7 +105,7 @@ scrape-configs:
       - source_labels: [__param_address]
         target_label: instance
       - target_label: __address__
-        replacement: <node hostname or IP>:9400
+        replacement: <node hostname or IP>:9300
 
   # all validators
   - job_name:       'validators'
@@ -113,7 +113,30 @@ scrape-configs:
     metrics_path: /metrics/validators
     static_configs:
       - targets:
-        replacement: <node hostname or IP>:9400
+        replacement: <node hostname or IP>:9300
 ```
 
 Then restart Prometheus and you're good to go!
+
+## How does it work?
+
+It queries the full node via gRPC and returns it in the format Prometheus can consume.
+
+## How can I configure it?
+
+You can pass the artuments to the executable file to configure it. Here is the parameters list:
+
+- `--bech-prefix` - the prefix for addresses. Defaults to `persistence`
+- `--denom` - the currency, for example, `uatom` for Cosmos. Defaults to `uxprt`
+- `--listen-address` - the address with port the node would listen to. For example, you can use it to redefine port or to make the exporter accessible from the outside by listening on `127.0.0.1`. Defaults to `:9300` (so it's accessible from the outside on port 9300)
+- `--node` - the gRPC node URL. Defaults to `localhost:9090`
+
+## Which networks this is guaranteed to work?
+
+In theory, it should work on a Cosmos-based blockchains that expose a gRPC endpoint (for example, Sentinel hub v0.5.0 doesn't expose it, so it won't work with it). In practice, this definitely works with the following blockchains:
+
+- Persistence
+
+## How can I contribute?
+
+Bug reports and feature requests are always welcome! If you want to contribute, feel free to open issues or PRs.

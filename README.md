@@ -113,10 +113,15 @@ scrape-configs:
     metrics_path: /metrics/validators
     static_configs:
       - targets:
-        replacement: <node hostname or IP>:9300
+        - <node hostname or IP>:9300
 ```
 
 Then restart Prometheus and you're good to go!
+
+All of the metrics provided by cosmos-exporter have the following prefixes:
+- `cosmos_validator_*` - metrics related to a single validator
+- `cosmos_validators_*` - metrics related to a validator set
+- `cosmos_wallet_*` - metrics related to a single wallet
 
 ## How does it work?
 

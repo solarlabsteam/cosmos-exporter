@@ -142,6 +142,7 @@ You can pass the artuments to the executable file to configure it. Here is the p
 In theory, it should work on a Cosmos-based blockchains that expose a gRPC endpoint (for example, Sentinel hub v0.5.0 doesn't expose it, so it won't work with it). In practice, this definitely works with the following blockchains:
 
 - Persistence
+- Cosmos (with `--bech-prefix cosmos --denom uatom`). The queries can take a long time though (apparently more than 90 seconds), so adjust the scrape timings and timeouts accordingly.
 
 ## How can I contribute?
 

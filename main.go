@@ -34,7 +34,7 @@ func main() {
 		Str("--bech-prefix", *Prefix).
 		Str("--denom", *Denom).
 		Str("--listen-address", *ListenAddress).
-		Str("--node-address", *NodeAddress).
+		Str("--node", *NodeAddress).
 		Str("--log-level", *LogLevel).
 		Msg("Started with following flags")
 

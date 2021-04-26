@@ -5,15 +5,19 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
 	validatorsCommissionGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "cosmos_validators_commission",
@@ -76,7 +80,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		&stakingtypes.QueryValidatorsRequest{},
 	)
 	if err != nil {
-		log.Error("Could not get validators, got error: ", err)
+		sublogger.Error().Err(err).Msg("Could not get validators")
 		return
 	}
 
@@ -84,7 +88,10 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
 		rate, err := strconv.ParseFloat(validator.Commission.CommissionRates.Rate.String(), 64)
 		if err != nil {
-			log.Error("Could not get commission rate for \"", validator.OperatorAddress, "\", got error: ", err)
+			log.Error().
+				Err(err).
+				Str("address", validator.OperatorAddress).
+				Msg("Could not get commission rate")
 		} else {
 			validatorsCommissionGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
@@ -129,5 +136,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
-	log.Info("GET /metrics/validators")
+	sublogger.Info().
+		Str("method", "GET").
+		Str("endpoint", "/metrics/validators").
+		Msg("Request processed")
 }

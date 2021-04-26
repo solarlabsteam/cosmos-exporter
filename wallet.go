@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,10 +17,17 @@ import (
 )
 
 func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
 	address := r.URL.Query().Get("address")
 	myAddress, err := sdk.AccAddressFromBech32(address)
 	if err != nil {
-		log.Error("Could not get address for \"", address, "\", got error: ", err)
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not get address")
 		return
 	}
 
@@ -81,8 +88,12 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&banktypes.QueryBalanceRequest{Address: myAddress.String(), Denom: *Denom},
 		)
+
 		if err != nil {
-			log.Error("Could not get balance for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get balance")
 			return
 		}
 
@@ -101,8 +112,12 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryDelegatorDelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
+
 		if err != nil {
-			log.Error("Could not get delegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get delegations")
 			return
 		}
 
@@ -124,8 +139,12 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryDelegatorUnbondingDelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
+
 		if err != nil {
-			log.Error("Could not get unbonding delegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get unbonding delegations")
 			return
 		}
 
@@ -152,8 +171,12 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryRedelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
+
 		if err != nil {
-			log.Error("Could not get redelegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get redelegations")
 			return
 		}
 
@@ -182,7 +205,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			&distributiontypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: myAddress.String()},
 		)
 		if err != nil {
-			log.Error("Could not get rewards for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get rewards")
 			return
 		}
 
@@ -202,5 +228,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
-	log.Info("GET /metrics/wallet?address=", address)
+	sublogger.Info().
+		Str("method", "GET").
+		Str("endpoint", "/metrics/wallet?address="+address).
+		Msg("Request processed")
 }

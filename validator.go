@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -17,10 +17,17 @@ import (
 )
 
 func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
 	address := r.URL.Query().Get("address")
 	myAddress, err := sdk.ValAddressFromBech32(address)
 	if err != nil {
-		log.Error("Could not get address for \"", address, "\", got error: ", err)
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not get address")
 		return
 	}
 
@@ -95,7 +102,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
 	)
 	if err != nil {
-		log.Error("Could not get validator for \"", address, "\", got error: ", err)
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not get validator")
 		return
 	}
 
@@ -112,7 +122,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
 	rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64)
 	if err != nil {
-		log.Error("Could not get commission rate for \"", address, "\", got error: ", err)
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not get commission rate")
 	} else {
 		validatorCommissionRateGauge.With(prometheus.Labels{
 			"address": validator.Validator.OperatorAddress,
@@ -131,7 +144,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
 		)
 		if err != nil {
-			log.Error("Could not get delegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get delegations")
 			return
 		}
 
@@ -155,7 +171,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			&distributiontypes.QueryValidatorCommissionRequest{ValidatorAddress: myAddress.String()},
 		)
 		if err != nil {
-			log.Error("Could not get commission for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get commission")
 			return
 		}
 
@@ -178,7 +197,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			&stakingtypes.QueryValidatorUnbondingDelegationsRequest{ValidatorAddr: myAddress.String()},
 		)
 		if err != nil {
-			log.Error("Could not get unbonding delegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get unbonding delegations")
 			return
 		}
 
@@ -207,7 +229,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			&stakingtypes.QueryRedelegationsRequest{SrcValidatorAddr: myAddress.String()},
 		)
 		if err != nil {
-			log.Error("Could not get redelegations for \"", address, "\", got error: ", err)
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get redelegations")
 			return
 		}
 
@@ -232,5 +257,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
-	log.Info("GET /metrics/validator?address=", address)
+	sublogger.Info().
+		Str("method", "GET").
+		Str("endpoint", "/metrics/validator?address="+address).
+		Msg("Request processed")
 }

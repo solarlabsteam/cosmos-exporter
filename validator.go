@@ -96,6 +96,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorRedelegationsGauge)
 
 	// doing this not in goroutine as we'll need the moniker value later
+	sublogger.Debug().
+		Str("address", address).
+		Msg("Started querying validator")
+
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validator, err := stakingClient.Validator(
 		context.Background(),
@@ -108,6 +112,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Could not get validator")
 		return
 	}
+
+	sublogger.Debug().
+		Str("address", address).
+		Msg("Finished querying validator")
 
 	validatorTokensGauge.With(prometheus.Labels{
 		"address": validator.Validator.OperatorAddress,
@@ -138,6 +146,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	go func() {
 		defer wg.Done()
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator delegations")
+
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.ValidatorDelegations(
 			context.Background(),
@@ -147,9 +159,13 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			sublogger.Error().
 				Str("address", address).
 				Err(err).
-				Msg("Could not get delegations")
+				Msg("Could not get validator delegations")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying validator delegations")
 
 		for _, delegation := range stakingRes.DelegationResponses {
 			validatorDelegationsGauge.With(prometheus.Labels{
@@ -165,6 +181,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	go func() {
 		defer wg.Done()
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator commission")
+
 		distributionClient := distributiontypes.NewQueryClient(grpcConn)
 		distributionRes, err := distributionClient.ValidatorCommission(
 			context.Background(),
@@ -174,9 +194,13 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			sublogger.Error().
 				Str("address", address).
 				Err(err).
-				Msg("Could not get commission")
+				Msg("Could not get validator commission")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying validator commission")
 
 		for _, commission := range distributionRes.Commission.Commission {
 			validatorCommissionGauge.With(prometheus.Labels{
@@ -191,6 +215,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	go func() {
 		defer wg.Done()
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator unbonding delegations")
+
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.ValidatorUnbondingDelegations(
 			context.Background(),
@@ -200,9 +228,13 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			sublogger.Error().
 				Str("address", address).
 				Err(err).
-				Msg("Could not get unbonding delegations")
+				Msg("Could not get validator unbonding delegations")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying validator unbonding delegations")
 
 		for _, unbonding := range stakingRes.UnbondingResponses {
 			var sum float64 = 0
@@ -223,6 +255,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	go func() {
 		defer wg.Done()
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator redelegations")
+
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.Redelegations(
 			context.Background(),
@@ -235,6 +271,10 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				Msg("Could not get redelegations")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying validator redelegations")
 
 		for _, redelegation := range stakingRes.RedelegationResponses {
 			var sum float64 = 0

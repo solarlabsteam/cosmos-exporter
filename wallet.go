@@ -82,6 +82,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	go func() {
 		defer wg.Done()
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying balance")
 
 		bankClient := banktypes.NewQueryClient(grpcConn)
 		bankRes, err := bankClient.Balance(
@@ -97,6 +100,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			return
 		}
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying balance")
+
 		walletBalanceGauge.With(prometheus.Labels{
 			"address": address,
 			"denom":   bankRes.GetBalance().Denom,
@@ -106,6 +113,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	go func() {
 		defer wg.Done()
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying delegations")
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.DelegatorDelegations(
@@ -121,6 +131,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			return
 		}
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying delegations")
+
 		for _, delegation := range stakingRes.DelegationResponses {
 			walletDelegationGauge.With(prometheus.Labels{
 				"address":      address,
@@ -133,6 +147,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	go func() {
 		defer wg.Done()
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying unbonding delegations")
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.DelegatorUnbondingDelegations(
@@ -147,6 +164,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				Msg("Could not get unbonding delegations")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying unbonding delegations")
 
 		for _, unbonding := range stakingRes.UnbondingResponses {
 			var sum float64 = 0
@@ -165,6 +186,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	go func() {
 		defer wg.Done()
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying redelegations")
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.Redelegations(
@@ -179,6 +203,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				Msg("Could not get redelegations")
 			return
 		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying redelegations")
 
 		for _, redelegation := range stakingRes.RedelegationResponses {
 			var sum float64 = 0
@@ -199,6 +227,10 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 	go func() {
 		defer wg.Done()
 
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying rewards")
+
 		distributionClient := distributiontypes.NewQueryClient(grpcConn)
 		distributionRes, err := distributionClient.DelegationTotalRewards(
 			context.Background(),
@@ -211,6 +243,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				Msg("Could not get rewards")
 			return
 		}
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Finished querying rewards")
 
 		for _, reward := range distributionRes.Rewards {
 			for _, entry := range reward.Reward {
@@ -230,6 +265,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 	h.ServeHTTP(w, r)
 	sublogger.Info().
 		Str("method", "GET").
-		Str("endpoint", "/metrics/wallet?address="+address).
+		Str("endpoint", "/metrics/validator?address="+address).
 		Msg("Request processed")
 }

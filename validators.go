@@ -74,6 +74,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	registry.MustRegister(validatorsDelegatorSharesGauge)
 	registry.MustRegister(validatorsMinSelfDelegationGauge)
 
+	sublogger.Debug().Msg("Started querying validators")
+
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validators, err := stakingClient.Validators(
 		context.Background(),
@@ -83,6 +85,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		sublogger.Error().Err(err).Msg("Could not get validators")
 		return
 	}
+
+	sublogger.Debug().Msg("Finished querying validators")
 
 	for _, validator := range validators.Validators {
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int

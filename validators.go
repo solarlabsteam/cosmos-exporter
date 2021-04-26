@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,6 +15,8 @@ import (
 )
 
 func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	requestStart := time.Now()
+
 	sublogger := log.With().
 		Str("request-id", uuid.New().String()).
 		Logger()
@@ -75,6 +78,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	registry.MustRegister(validatorsMinSelfDelegationGauge)
 
 	sublogger.Debug().Msg("Started querying validators")
+	queryStart := time.Now()
 
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validators, err := stakingClient.Validators(
@@ -86,7 +90,9 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		return
 	}
 
-	sublogger.Debug().Msg("Finished querying validators")
+	sublogger.Debug().
+		Float64("request-time", time.Since(queryStart).Seconds()).
+		Msg("Finished querying validators")
 
 	for _, validator := range validators.Validators {
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
@@ -143,5 +149,6 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	sublogger.Info().
 		Str("method", "GET").
 		Str("endpoint", "/metrics/validators").
+		Float64("request-time", time.Since(requestStart).Seconds()).
 		Msg("Request processed")
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 )
 
 func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	requestStart := time.Now()
 	sublogger := log.With().
 		Str("request-id", uuid.New().String()).
 		Logger()
@@ -99,6 +101,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	sublogger.Debug().
 		Str("address", address).
 		Msg("Started querying validator")
+	validatorQueryStart := time.Now()
 
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validator, err := stakingClient.Validator(
@@ -115,6 +118,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 	sublogger.Debug().
 		Str("address", address).
+		Float64("request-time", time.Since(validatorQueryStart).Seconds()).
 		Msg("Finished querying validator")
 
 	validatorTokensGauge.With(prometheus.Labels{
@@ -149,6 +153,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		sublogger.Debug().
 			Str("address", address).
 			Msg("Started querying validator delegations")
+		queryStart := time.Now()
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.ValidatorDelegations(
@@ -165,6 +170,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		sublogger.Debug().
 			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying validator delegations")
 
 		for _, delegation := range stakingRes.DelegationResponses {
@@ -184,6 +190,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		sublogger.Debug().
 			Str("address", address).
 			Msg("Started querying validator commission")
+		queryStart := time.Now()
 
 		distributionClient := distributiontypes.NewQueryClient(grpcConn)
 		distributionRes, err := distributionClient.ValidatorCommission(
@@ -200,6 +207,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		sublogger.Debug().
 			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying validator commission")
 
 		for _, commission := range distributionRes.Commission.Commission {
@@ -218,6 +226,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		sublogger.Debug().
 			Str("address", address).
 			Msg("Started querying validator unbonding delegations")
+		queryStart := time.Now()
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.ValidatorUnbondingDelegations(
@@ -234,6 +243,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		sublogger.Debug().
 			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying validator unbonding delegations")
 
 		for _, unbonding := range stakingRes.UnbondingResponses {
@@ -258,6 +268,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		sublogger.Debug().
 			Str("address", address).
 			Msg("Started querying validator redelegations")
+		queryStart := time.Now()
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.Redelegations(
@@ -274,6 +285,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		sublogger.Debug().
 			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying validator redelegations")
 
 		for _, redelegation := range stakingRes.RedelegationResponses {
@@ -300,5 +312,6 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	sublogger.Info().
 		Str("method", "GET").
 		Str("endpoint", "/metrics/validator?address="+address).
+		Float64("request-time", time.Since(requestStart).Seconds()).
 		Msg("Request processed")
 }

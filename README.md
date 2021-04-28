@@ -168,6 +168,7 @@ In theory, it should work on a Cosmos-based blockchains that expose a gRPC endpo
 This won't work with the following blockchains:
 - Sentinel - it doesn't expose gRPC endpoint for now. Should be fixed in sentinel-hub v0.6.0
 - Kava - for the same reason.
+- fetch.ai - for the same reason
 
 ## How can I contribute?
 

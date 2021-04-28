@@ -131,11 +131,30 @@ It queries the full node via gRPC and returns it in the format Prometheus can co
 
 You can pass the artuments to the executable file to configure it. Here is the parameters list:
 
-- `--bech-prefix` - the prefix for addresses. Defaults to `persistence`
+- `--bech-prefix` - the global prefix for addresses. Defaults to `persistence`
 - `--denom` - the currency, for example, `uatom` for Cosmos. Defaults to `uxprt`
 - `--listen-address` - the address with port the node would listen to. For example, you can use it to redefine port or to make the exporter accessible from the outside by listening on `127.0.0.1`. Defaults to `:9300` (so it's accessible from the outside on port 9300)
 - `--node` - the gRPC node URL. Defaults to `localhost:9090`
 - `--log-devel` - logger level. Defaults to `info`. You can set it to `debug` to make it more verbose.
+
+You can also specify custom Bech32 prefixes for wallets, validators, consensus nodes, and their pubkeys by using the following params:
+- `--bech-account-prefix`
+- `--bech-account-pubkey-prefix`
+- `--bech-validator-prefix`
+- `--bech-validator-pubkey-prefix`
+- `--bech-consensus-node-prefix`
+- `--bech-consensus-node-pubkey-prefix`
+
+By default, if not specified, it defaults to the next values (as it works this way for the most of the networks):
+- `--bech-account-prefix` = `--bech-prefix`
+- `--bech-account-pubkey-prefix` = `--bech-prefix` + "pub"
+- `--bech-validator-prefix`  = `--bech-prefix` + "valoper"
+- `--bech-validator-pubkey-prefix` = `--bech-prefix` + "valoperpub"
+- `--bech-consensus-node-prefix` = `--bech-prefix` + "valcons"
+- `--bech-consensus-node-pubkey-prefix` = `--bech-prefix` + "valconspub"
+
+An example of the network where you have to specify all the prefixes manually is Iris, check out the flags example below.
+
 
 ## Which networks this is guaranteed to work?
 
@@ -144,6 +163,7 @@ In theory, it should work on a Cosmos-based blockchains that expose a gRPC endpo
 - Persistence (with `--bech-prefix persistence --denom uxprt`)
 - Cosmos (with `--bech-prefix cosmos --denom uatom`). The queries can take a long time though (apparently more than 90 seconds), so adjust the scrape timings and timeouts accordingly.
 - Akash (with `--bech-prefix akash --denom uakt`)
+- Iris (with `--bech-account-prefix iaa --bech-consensus-node-prefix ica --bech-validator-prefix iva  --bech-account-pubkey-prefix ivc --bech-consensus-node-pubkey-prefix icp --bech-validator-pubkey-prefix ivc --denom uiris`)
 
 This won't work with the following blockchains:
 - Sentinel - it doesn't expose gRPC endpoint for now. Should be fixed in sentinel-hub v0.6.0

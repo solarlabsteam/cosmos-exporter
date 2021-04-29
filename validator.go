@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -88,6 +90,14 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "moniker", "denom", "redelegated_by", "redelegated_to"},
 	)
 
+	validatorMissedBlocksGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_missed_blocks",
+			Help: "Missed blocks of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "moniker"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
@@ -96,6 +106,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorCommissionGauge)
 	registry.MustRegister(validatorUnbondingsGauge)
 	registry.MustRegister(validatorRedelegationsGauge)
+	registry.MustRegister(validatorMissedBlocksGauge)
 
 	// doing this not in goroutine as we'll need the moniker value later
 	sublogger.Debug().
@@ -302,6 +313,63 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"redelegated_to": redelegation.Redelegation.ValidatorDstAddress,
 			}).Set(sum)
 		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator signing info")
+		queryStart := time.Now()
+
+		encCfg := simapp.MakeTestEncodingConfig()
+		interfaceRegistry := encCfg.InterfaceRegistry
+
+		err := validator.Validator.UnpackInterfaces(interfaceRegistry) // Unpack interfaces, to populate the Anys' cached values
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get unpack validator inferfaces")
+		}
+
+		pubKey, err := validator.Validator.GetConsAddr()
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get validator pubkey")
+		}
+
+		slashingClient := slashingtypes.NewQueryClient(grpcConn)
+		slashingRes, err := slashingClient.SigningInfo(
+			context.Background(),
+			&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},
+		)
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get validator signing info")
+			return
+		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validator signing info")
+
+		sublogger.Debug().
+			Str("address", address).
+			Int64("missedBlocks", slashingRes.ValSigningInfo.MissedBlocksCounter).
+			Msg("Finished querying validator signing info")
+
+		validatorMissedBlocksGauge.With(prometheus.Labels{
+			"moniker": validator.Validator.Description.Moniker,
+			"address": address,
+		}).Set(float64(slashingRes.ValSigningInfo.MissedBlocksCounter))
 	}()
 	wg.Add(1)
 

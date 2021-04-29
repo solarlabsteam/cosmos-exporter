@@ -136,6 +136,8 @@ You can pass the artuments to the executable file to configure it. Here is the p
 - `--listen-address` - the address with port the node would listen to. For example, you can use it to redefine port or to make the exporter accessible from the outside by listening on `127.0.0.1`. Defaults to `:9300` (so it's accessible from the outside on port 9300)
 - `--node` - the gRPC node URL. Defaults to `localhost:9090`
 - `--log-devel` - logger level. Defaults to `info`. You can set it to `debug` to make it more verbose.
+- `--limit` - pagination limit for gRPC requests. Defaults to 1000.
+
 
 You can also specify custom Bech32 prefixes for wallets, validators, consensus nodes, and their pubkeys by using the following params:
 - `--bech-account-prefix`

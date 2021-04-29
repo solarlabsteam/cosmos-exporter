@@ -26,6 +26,7 @@ var Denom = flag.String("denom", "uxprt", "Cosmos coin denom")
 var ListenAddress = flag.String("listen-address", ":9300", "The address this exporter would listen on")
 var NodeAddress = flag.String("node", "localhost:9090", "RPC node address")
 var LogLevel = flag.String("log-level", "info", "Logging level")
+var Limit = flag.Uint64("limit", 1000, "Pagination limit for gRPC requests")
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 

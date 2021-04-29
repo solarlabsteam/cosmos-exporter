@@ -11,10 +11,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
+	"github.com/cosmos/cosmos-sdk/simapp"
+	querytypes "github.com/cosmos/cosmos-sdk/types/query"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+	encCfg := simapp.MakeTestEncodingConfig()
+	interfaceRegistry := encCfg.InterfaceRegistry
+
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -69,6 +75,14 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		[]string{"address", "moniker"},
 	)
 
+	validatorsMissedBlocksGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validators_missed_blocks",
+			Help: "Missed blocks of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "moniker"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorsCommissionGauge)
 	registry.MustRegister(validatorsStatusGauge)
@@ -76,6 +90,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	registry.MustRegister(validatorsTokensGauge)
 	registry.MustRegister(validatorsDelegatorSharesGauge)
 	registry.MustRegister(validatorsMinSelfDelegationGauge)
+	registry.MustRegister(validatorsMissedBlocksGauge)
 
 	sublogger.Debug().Msg("Started querying validators")
 	queryStart := time.Now()
@@ -83,7 +98,11 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validators, err := stakingClient.Validators(
 		context.Background(),
-		&stakingtypes.QueryValidatorsRequest{},
+		&stakingtypes.QueryValidatorsRequest{
+			Pagination: &querytypes.PageRequest{
+				Limit: *Limit,
+			},
+		},
 	)
 	if err != nil {
 		sublogger.Error().Err(err).Msg("Could not get validators")
@@ -93,6 +112,35 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	sublogger.Debug().
 		Float64("request-time", time.Since(queryStart).Seconds()).
 		Msg("Finished querying validators")
+
+	sublogger.Debug().Msg("Started querying validators signing infos")
+
+	queryStart = time.Now()
+
+	slashingClient := slashingtypes.NewQueryClient(grpcConn)
+	signingInfos, err := slashingClient.SigningInfos(
+		context.Background(),
+		&slashingtypes.QuerySigningInfosRequest{
+			Pagination: &querytypes.PageRequest{
+				Limit: *Limit,
+			},
+		},
+	)
+	if err != nil {
+		sublogger.Error().
+			Err(err).
+			Msg("Could not get validators signing infos")
+		return
+	}
+
+	sublogger.Info().
+		Int("signingLength", len(signingInfos.Info)).
+		Int("validatorsLength", len(validators.Validators)).
+		Msg("Length")
+
+	sublogger.Debug().
+		Float64("request-time", time.Since(queryStart).Seconds()).
+		Msg("Finished querying validator signing infso")
 
 	for _, validator := range validators.Validators {
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
@@ -142,6 +190,44 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			"address": validator.OperatorAddress,
 			"moniker": validator.Description.Moniker,
 		}).Set(float64(validator.MinSelfDelegation.Int64()))
+
+		err = validator.UnpackInterfaces(interfaceRegistry) // Unpack interfaces, to populate the Anys' cached values
+		if err != nil {
+			sublogger.Error().
+				Str("address", validator.OperatorAddress).
+				Err(err).
+				Msg("Could not get unpack validator inferfaces")
+		}
+
+		pubKey, err := validator.GetConsAddr()
+		if err != nil {
+			sublogger.Error().
+				Str("address", validator.OperatorAddress).
+				Err(err).
+				Msg("Could not get validator pubkey")
+		}
+
+		var signingInfo slashingtypes.ValidatorSigningInfo
+		found := false
+
+		for _, signingInfoIterated := range signingInfos.Info {
+			if pubKey.String() == signingInfoIterated.Address {
+				found = true
+				signingInfo = signingInfoIterated
+				break
+			}
+		}
+
+		if !found {
+			sublogger.Debug().
+				Str("address", validator.OperatorAddress).
+				Msg("Could not get signing info for validator")
+		}
+
+		validatorsMissedBlocksGauge.With(prometheus.Labels{
+			"address": validator.OperatorAddress,
+			"moniker": validator.Description.Moniker,
+		}).Set(float64(signingInfo.MissedBlocksCounter))
 	}
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"flag"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -10,78 +10,70 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/rs/zerolog"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
-var PrefixFlag = flag.String("bech-prefix", "persistence", "Bech32 global prefix")
+var (
+	ConfigPath string
 
-// some networks, like Iris, have the different prefixes for address, validator and consensus node
-var AccountPrefixFlag = flag.String("bech-account-prefix", "", "Bech32 account prefix")
-var AccountPubkeyPrefixFlag = flag.String("bech-account-pubkey-prefix", "", "Bech32 pubkey account prefix")
-var ValidatorPrefixFlag = flag.String("bech-validator-prefix", "", "Bech32 validator prefix")
-var ValidatorPubkeyPrefixFlag = flag.String("bech-validator-pubkey-prefix", "", "Bech32 pubkey validator prefix")
-var ConsensusNodePrefixFlag = flag.String("bech-consensus-node-prefix", "", "Bech32 consensus node prefix")
-var ConsensusNodePubkeyPrefixFlag = flag.String("bech-consensus-node-pubkey-prefix", "", "Bech32 pubkey consensus node prefix")
+	Denom         string
+	ListenAddress string
+	NodeAddress   string
+	LogLevel      string
+	Limit         uint64
 
-var Denom = flag.String("denom", "uxprt", "Cosmos coin denom")
-var ListenAddress = flag.String("listen-address", ":9300", "The address this exporter would listen on")
-var NodeAddress = flag.String("node", "localhost:9090", "RPC node address")
-var LogLevel = flag.String("log-level", "info", "Logging level")
-var Limit = flag.Uint64("limit", 1000, "Pagination limit for gRPC requests")
+	Prefix                    string
+	AccountPrefix             string
+	AccountPubkeyPrefix       string
+	ValidatorPrefix           string
+	ValidatorPubkeyPrefix     string
+	ConsensusNodePrefix       string
+	ConsensusNodePubkeyPrefix string
+)
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 
-var AccountPrefix string
-var AccountPubkeyPrefix string
-var ValidatorPrefix string
-var ValidatorPubkeyPrefix string
-var ConsensusNodePrefix string
-var ConsensusNodePubkeyPrefix string
+var rootCmd = &cobra.Command{
+	Use:  "missed-blocks-checker",
+	Long: "Tool to monitor missed blocks for Cosmos-chain validators",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if ConfigPath == "" {
+			return nil
+		}
 
-func main() {
-	flag.Parse()
+		viper.SetConfigFile(ConfigPath)
+		if err := viper.ReadInConfig(); err != nil {
+			log.Info().Err(err).Msg("Error reading config file")
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return err
+			}
+		}
 
-	logLevel, err := zerolog.ParseLevel(*LogLevel)
+		// Credits to https://carolynvanslyck.com/blog/2020/08/sting-of-the-viper/
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			if !f.Changed && viper.IsSet(f.Name) {
+				val := viper.Get(f.Name)
+				if err := cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val)); err != nil {
+					log.Fatal().Err(err).Msg("Could not set flag")
+				}
+			}
+		})
+
+		return nil
+	},
+	Run: Execute,
+}
+
+func Execute(cmd *cobra.Command, args []string) {
+	logLevel, err := zerolog.ParseLevel(LogLevel)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not parse log level")
 	}
 
 	zerolog.SetGlobalLevel(logLevel)
-
-	if *AccountPrefixFlag == "" {
-		AccountPrefix = *PrefixFlag
-	} else {
-		AccountPrefix = *AccountPrefixFlag
-	}
-
-	if *AccountPubkeyPrefixFlag == "" {
-		AccountPubkeyPrefix = *PrefixFlag + "pub"
-	} else {
-		AccountPubkeyPrefix = *PrefixFlag
-	}
-
-	if *ValidatorPrefixFlag == "" {
-		ValidatorPrefix = *PrefixFlag + "valoper"
-	} else {
-		ValidatorPrefix = *ValidatorPrefixFlag
-	}
-
-	if *ValidatorPubkeyPrefixFlag == "" {
-		ValidatorPubkeyPrefix = *PrefixFlag + "valoperpub"
-	} else {
-		ValidatorPubkeyPrefix = *ValidatorPubkeyPrefixFlag
-	}
-
-	if *ConsensusNodePrefixFlag == "" {
-		ConsensusNodePrefix = *PrefixFlag + "valcons"
-	} else {
-		ConsensusNodePrefix = *ConsensusNodePrefixFlag
-	}
-
-	if *ConsensusNodePubkeyPrefixFlag == "" {
-		ConsensusNodePubkeyPrefix = *PrefixFlag + "valconspub"
-	} else {
-		ConsensusNodePubkeyPrefix = *ConsensusNodePrefixFlag
-	}
 
 	log.Info().
 		Str("--bech-account-prefix", AccountPrefix).
@@ -90,10 +82,10 @@ func main() {
 		Str("--bech-validator-pubkey-prefix", ValidatorPubkeyPrefix).
 		Str("--bech-consensus-node-prefix", ConsensusNodePrefix).
 		Str("--bech-consensus-node-pubkey-prefix", ConsensusNodePubkeyPrefix).
-		Str("--denom", *Denom).
-		Str("--listen-address", *ListenAddress).
-		Str("--node", *NodeAddress).
-		Str("--log-level", *LogLevel).
+		Str("--denom", Denom).
+		Str("--listen-address", ListenAddress).
+		Str("--node", NodeAddress).
+		Str("--log-level", LogLevel).
 		Msg("Started with following parameters")
 
 	config := sdk.GetConfig()
@@ -103,7 +95,7 @@ func main() {
 	config.Seal()
 
 	grpcConn, err := grpc.Dial(
-		*NodeAddress,
+		NodeAddress,
 		grpc.WithInsecure(),
 	)
 	if err != nil {
@@ -124,9 +116,28 @@ func main() {
 		ValidatorsHandler(w, r, grpcConn)
 	})
 
-	log.Info().Str("address", *ListenAddress).Msg("Listening")
-	err = http.ListenAndServe(*ListenAddress, nil)
+	log.Info().Str("address", ListenAddress).Msg("Listening")
+	err = http.ListenAndServe(ListenAddress, nil)
 	if err != nil {
+		log.Fatal().Err(err).Msg("Could not start application")
+	}
+}
+
+func main() {
+	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "uxprt", "Cosmos coin denom")
+	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
+	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
+	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
+	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
+
+	// some networks, like Iris, have the different prefixes for address, validator and consensus node
+	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")
+	rootCmd.PersistentFlags().StringVar(&ValidatorPrefix, "bech-validator-prefix", Prefix+"valoper", "Bech32 validator prefix")
+	rootCmd.PersistentFlags().StringVar(&ValidatorPubkeyPrefix, "bech-validator-pubkey-prefix", Prefix+"valoperpub", "Bech32 pubkey validator prefix")
+	rootCmd.PersistentFlags().StringVar(&ConsensusNodePrefix, "bech-consensus-node-prefix", Prefix+"valcons", "Bech32 consensus node prefix")
+	rootCmd.PersistentFlags().StringVar(&ConsensusNodePubkeyPrefix, "bech-consensus-node-pubkey-prefix", Prefix+"valconspub", "Bech32 pubkey consensus node prefix")
+
+	if err := rootCmd.Execute(); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }

@@ -157,6 +157,7 @@ By default, if not specified, it defaults to the next values (as it works this w
 
 An example of the network where you have to specify all the prefixes manually is Iris, check out the flags example below.
 
+Additionally, you can pass a `--config` flag with a path to your config file (I use `.toml`, but anything supported by [viper](https://github.com/spf13/viper) should work).
 
 ## Which networks this is guaranteed to work?
 

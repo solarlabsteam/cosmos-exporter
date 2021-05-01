@@ -93,7 +93,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		bankClient := banktypes.NewQueryClient(grpcConn)
 		bankRes, err := bankClient.Balance(
 			context.Background(),
-			&banktypes.QueryBalanceRequest{Address: myAddress.String(), Denom: *Denom},
+			&banktypes.QueryBalanceRequest{Address: myAddress.String(), Denom: Denom},
 		)
 
 		if err != nil {
@@ -186,7 +186,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 			walletUnbondingsGauge.With(prometheus.Labels{
 				"address":       unbonding.DelegatorAddress,
-				"denom":         *Denom, // unbonding does not have denom in response for some reason
+				"denom":         Denom, // unbonding does not have denom in response for some reason
 				"unbonded_from": unbonding.ValidatorAddress,
 			}).Set(sum)
 		}
@@ -227,7 +227,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 			walletRedelegationGauge.With(prometheus.Labels{
 				"address":          redelegation.Redelegation.DelegatorAddress,
-				"denom":            *Denom, // redelegation does not have denom in response for some reason
+				"denom":            Denom, // redelegation does not have denom in response for some reason
 				"redelegated_from": redelegation.Redelegation.ValidatorSrcAddress,
 				"redelegated_to":   redelegation.Redelegation.ValidatorDstAddress,
 			}).Set(sum)

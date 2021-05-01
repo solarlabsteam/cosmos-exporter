@@ -100,7 +100,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		context.Background(),
 		&stakingtypes.QueryValidatorsRequest{
 			Pagination: &querytypes.PageRequest{
-				Limit: *Limit,
+				Limit: Limit,
 			},
 		},
 	)
@@ -122,7 +122,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		context.Background(),
 		&slashingtypes.QuerySigningInfosRequest{
 			Pagination: &querytypes.PageRequest{
-				Limit: *Limit,
+				Limit: Limit,
 			},
 		},
 	)
@@ -154,7 +154,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			validatorsCommissionGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
 				"moniker": validator.Description.Moniker,
-				"denom":   *Denom,
+				"denom":   Denom,
 			}).Set(rate)
 		}
 

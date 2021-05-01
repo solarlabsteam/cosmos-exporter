@@ -266,7 +266,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			validatorUnbondingsGauge.With(prometheus.Labels{
 				"address":     unbonding.ValidatorAddress,
 				"moniker":     validator.Validator.Description.Moniker,
-				"denom":       *Denom, // unbonding does not have denom in response for some reason
+				"denom":       Denom, // unbonding does not have denom in response for some reason
 				"unbonded_by": unbonding.DelegatorAddress,
 			}).Set(sum)
 		}
@@ -308,7 +308,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			validatorRedelegationsGauge.With(prometheus.Labels{
 				"address":        redelegation.Redelegation.ValidatorSrcAddress,
 				"moniker":        validator.Validator.Description.Moniker,
-				"denom":          *Denom, // redelegation does not have denom in response for some reason
+				"denom":          Denom, // redelegation does not have denom in response for some reason
 				"redelegated_by": redelegation.Redelegation.DelegatorAddress,
 				"redelegated_to": redelegation.Redelegation.ValidatorDstAddress,
 			}).Set(sum)

@@ -37,11 +37,12 @@ var (
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 
 var rootCmd = &cobra.Command{
-	Use:  "missed-blocks-checker",
-	Long: "Tool to monitor missed blocks for Cosmos-chain validators",
+	Use:  "cosmos-exporter",
+	Long: "Scrape the data about the validators set, specific validators or wallets in the Cosmos network.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if ConfigPath == "" {
 			log.Trace().Msg("Config file not provided")
+			setBechPrefixes(cmd)
 			return nil
 		}
 

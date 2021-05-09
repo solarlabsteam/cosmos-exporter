@@ -19,8 +19,7 @@ First of all, you need to download the latest release from [the releases page](h
 
 ```sh
 wget <the link from the releases page>
-tar xvfz cosmos-exporter-*.*-amd64.tar.gz
-cd cosmos-exporter-*.*-amd64.tar.gz
+tar xvfz cosmos-exporter-*
 ./cosmos-exporter
 ```
 
@@ -69,7 +68,7 @@ sudo systemctl status cosmos-exporter # validate it's running
 If you need to, you can also see the logs of the process:
 
 ```sh
-sudo journalctl -u cosmos-exporter -f
+sudo journalctl -u cosmos-exporter -f --output cat
 ```
 
 ## How can I scrape data from it?

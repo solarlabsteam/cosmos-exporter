@@ -41,12 +41,12 @@ var rootCmd = &cobra.Command{
 	Long: "Scrape the data about the validators set, specific validators or wallets in the Cosmos network.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if ConfigPath == "" {
-			log.Trace().Msg("Config file not provided")
+			log.Info().Msg("Config file not provided")
 			setBechPrefixes(cmd)
 			return nil
 		}
 
-		log.Trace().Msg("Config file provided")
+		log.Info().Msg("Config file provided")
 
 		viper.SetConfigFile(ConfigPath)
 		if err := viper.ReadInConfig(); err != nil {

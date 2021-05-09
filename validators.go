@@ -133,10 +133,10 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		return
 	}
 
-	sublogger.Info().
+	sublogger.Debug().
 		Int("signingLength", len(signingInfos.Info)).
 		Int("validatorsLength", len(validators.Validators)).
-		Msg("Length")
+		Msg("Signing info length")
 
 	sublogger.Debug().
 		Float64("request-time", time.Since(queryStart).Seconds()).

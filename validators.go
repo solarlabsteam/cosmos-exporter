@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,6 +85,22 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		[]string{"address", "moniker"},
 	)
 
+	validatorsRankGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validators_rank",
+			Help: "Rank of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "moniker"},
+	)
+
+	validatorsIsActiveGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validators_active",
+			Help: "1 if the Cosmos-based blockchain validator is in active set, 0 if no",
+		},
+		[]string{"address", "moniker"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorsCommissionGauge)
 	registry.MustRegister(validatorsStatusGauge)
@@ -91,58 +109,106 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 	registry.MustRegister(validatorsDelegatorSharesGauge)
 	registry.MustRegister(validatorsMinSelfDelegationGauge)
 	registry.MustRegister(validatorsMissedBlocksGauge)
+	registry.MustRegister(validatorsRankGauge)
+	registry.MustRegister(validatorsIsActiveGauge)
 
-	sublogger.Debug().Msg("Started querying validators")
-	queryStart := time.Now()
+	var validators []stakingtypes.Validator
+	var signingInfos []slashingtypes.ValidatorSigningInfo
+	var validatorSetLength uint32
 
-	stakingClient := stakingtypes.NewQueryClient(grpcConn)
-	validators, err := stakingClient.Validators(
-		context.Background(),
-		&stakingtypes.QueryValidatorsRequest{
-			Pagination: &querytypes.PageRequest{
-				Limit: Limit,
+	var wg sync.WaitGroup
+
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying validators")
+		queryStart := time.Now()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		validatorsResponse, err := stakingClient.Validators(
+			context.Background(),
+			&stakingtypes.QueryValidatorsRequest{
+				Pagination: &querytypes.PageRequest{
+					Limit: Limit,
+				},
 			},
-		},
-	)
-	if err != nil {
-		sublogger.Error().Err(err).Msg("Could not get validators")
-		return
-	}
+		)
+		if err != nil {
+			sublogger.Error().Err(err).Msg("Could not get validators")
+			return
+		}
 
-	sublogger.Debug().
-		Float64("request-time", time.Since(queryStart).Seconds()).
-		Msg("Finished querying validators")
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validators")
+		validators = validatorsResponse.Validators
 
-	sublogger.Debug().Msg("Started querying validators signing infos")
+		// sorting by delegator shares to display rankings
+		sort.Slice(validators[:], func(i, j int) bool {
+			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
+		})
+	}()
+	wg.Add(1)
 
-	queryStart = time.Now()
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying validators signing infos")
+		queryStart := time.Now()
 
-	slashingClient := slashingtypes.NewQueryClient(grpcConn)
-	signingInfos, err := slashingClient.SigningInfos(
-		context.Background(),
-		&slashingtypes.QuerySigningInfosRequest{
-			Pagination: &querytypes.PageRequest{
-				Limit: Limit,
+		slashingClient := slashingtypes.NewQueryClient(grpcConn)
+		signingInfosResponse, err := slashingClient.SigningInfos(
+			context.Background(),
+			&slashingtypes.QuerySigningInfosRequest{
+				Pagination: &querytypes.PageRequest{
+					Limit: Limit,
+				},
 			},
-		},
-	)
-	if err != nil {
-		sublogger.Error().
-			Err(err).
-			Msg("Could not get validators signing infos")
-		return
-	}
+		)
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get validators signing infos")
+			return
+		}
+
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validator signing infos")
+		signingInfos = signingInfosResponse.Info
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying staking params")
+		queryStart := time.Now()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		paramsResponse, err := stakingClient.Params(
+			context.Background(),
+			&stakingtypes.QueryParamsRequest{},
+		)
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get staking params")
+			return
+		}
+
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying staking params")
+		validatorSetLength = paramsResponse.Params.MaxValidators
+	}()
+	wg.Add(1)
+
+	wg.Wait()
 
 	sublogger.Debug().
-		Int("signingLength", len(signingInfos.Info)).
-		Int("validatorsLength", len(validators.Validators)).
-		Msg("Signing info length")
+		Int("signingLength", len(signingInfos)).
+		Int("validatorsLength", len(validators)).
+		Msg("Validators info")
 
-	sublogger.Debug().
-		Float64("request-time", time.Since(queryStart).Seconds()).
-		Msg("Finished querying validator signing infso")
-
-	for _, validator := range validators.Validators {
+	for index, validator := range validators {
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
 		rate, err := strconv.ParseFloat(validator.Commission.CommissionRates.Rate.String(), 64)
 		if err != nil {
@@ -210,7 +276,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		var signingInfo slashingtypes.ValidatorSigningInfo
 		found := false
 
-		for _, signingInfoIterated := range signingInfos.Info {
+		for _, signingInfoIterated := range signingInfos {
 			if pubKey.String() == signingInfoIterated.Address {
 				found = true
 				signingInfo = signingInfoIterated
@@ -228,6 +294,27 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			"address": validator.OperatorAddress,
 			"moniker": validator.Description.Moniker,
 		}).Set(float64(signingInfo.MissedBlocksCounter))
+
+		validatorsRankGauge.With(prometheus.Labels{
+			"address": validator.OperatorAddress,
+			"moniker": validator.Description.Moniker,
+		}).Set(float64(index + 1))
+
+		if validatorSetLength != 0 {
+			// golang doesn't have a ternary operator, so we have to stick with this ugly solution
+			var active float64
+
+			if index+1 <= int(validatorSetLength) {
+				active = 1
+			} else {
+				active = 0
+			}
+
+			validatorsIsActiveGauge.With(prometheus.Labels{
+				"address": validator.OperatorAddress,
+				"moniker": validator.Description.Moniker,
+			}).Set(active)
+		}
 	}
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

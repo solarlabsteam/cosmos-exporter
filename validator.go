@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -98,6 +99,22 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "moniker"},
 	)
 
+	validatorRankGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_rank",
+			Help: "Rank of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "moniker"},
+	)
+
+	validatorIsActiveGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_active",
+			Help: "1 if the Cosmos-based blockchain validator is in active set, 0 if no",
+		},
+		[]string{"address", "moniker"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
@@ -107,6 +124,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorUnbondingsGauge)
 	registry.MustRegister(validatorRedelegationsGauge)
 	registry.MustRegister(validatorMissedBlocksGauge)
+	registry.MustRegister(validatorRankGauge)
+	registry.MustRegister(validatorIsActiveGauge)
 
 	// doing this not in goroutine as we'll need the moniker value later
 	sublogger.Debug().
@@ -370,6 +389,98 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			"moniker": validator.Validator.Description.Moniker,
 			"address": address,
 		}).Set(float64(slashingRes.ValSigningInfo.MissedBlocksCounter))
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator other validators")
+		queryStart := time.Now()
+
+		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingRes, err := stakingClient.Validators(
+			context.Background(),
+			&stakingtypes.QueryValidatorsRequest{},
+		)
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get other validators")
+			return
+		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validator other validators")
+
+		validators := stakingRes.Validators
+
+		// sorting by delegator shares to display rankings
+		sort.Slice(validators[:], func(i, j int) bool {
+			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
+		})
+
+		var validatorRank int
+
+		for index, validatorIterated := range validators {
+			if validatorIterated.OperatorAddress == validator.Validator.OperatorAddress {
+				validatorRank = index + 1
+				break
+			}
+		}
+
+		if validatorRank == 0 {
+			sublogger.Warn().
+				Str("address", address).
+				Msg("Could not find validator in validators list")
+			return
+		}
+
+		validatorRankGauge.With(prometheus.Labels{
+			"moniker": validator.Validator.Description.Moniker,
+			"address": address,
+		}).Set(float64(validatorRank))
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator params")
+		queryStart = time.Now()
+
+		paramsRes, err := stakingClient.Params(
+			context.Background(),
+			&stakingtypes.QueryParamsRequest{},
+		)
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get params")
+			return
+		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validator params")
+
+		// golang doesn't have a ternary operator, so we have to stick with this ugly solution
+		var active float64
+
+		if validatorRank+1 <= int(paramsRes.Params.MaxValidators) {
+			active = 1
+		} else {
+			active = 0
+		}
+
+		validatorIsActiveGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+			"moniker": validator.Validator.Description.Moniker,
+		}).Set(active)
 	}()
 	wg.Add(1)
 

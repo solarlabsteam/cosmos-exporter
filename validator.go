@@ -75,6 +75,14 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "moniker", "denom"},
 	)
 
+	validatorRewardsGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_validator_rewards",
+			Help: "Rewards of the Cosmos-based blockchain validator",
+		},
+		[]string{"address", "moniker", "denom"},
+	)
+
 	validatorUnbondingsGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "cosmos_validator_unbondings",
@@ -121,6 +129,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorDelegatorSharesGauge)
 	registry.MustRegister(validatorCommissionRateGauge)
 	registry.MustRegister(validatorCommissionGauge)
+	registry.MustRegister(validatorRewardsGauge)
 	registry.MustRegister(validatorUnbondingsGauge)
 	registry.MustRegister(validatorRedelegationsGauge)
 	registry.MustRegister(validatorMissedBlocksGauge)
@@ -246,6 +255,50 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"moniker": validator.Validator.Description.Moniker,
 				"denom":   commission.Denom,
 			}).Set(float64(commission.Amount.RoundInt64()))
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		sublogger.Debug().
+			Str("address", address).
+			Msg("Started querying validator rewards")
+		queryStart := time.Now()
+
+		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionRes, err := distributionClient.ValidatorOutstandingRewards(
+			context.Background(),
+			&distributiontypes.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: myAddress.String()},
+		)
+		if err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not get validator rewards")
+			return
+		}
+
+		sublogger.Debug().
+			Str("address", address).
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying validator rewards")
+
+		for _, reward := range distributionRes.Rewards.Rewards {
+			// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+			if rate, err := strconv.ParseFloat(reward.Amount.String(), 64); err != nil {
+				sublogger.Error().
+					Str("address", address).
+					Err(err).
+					Msg("Could not get reward")
+			} else {
+				validatorRewardsGauge.With(prometheus.Labels{
+					"address": address,
+					"moniker": validator.Validator.Description.Moniker,
+					"denom":   reward.Denom,
+				}).Set(rate)
+			}
 		}
 	}()
 	wg.Add(1)

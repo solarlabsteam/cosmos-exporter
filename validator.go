@@ -171,8 +171,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	}).Set(float64(validator.Validator.DelegatorShares.RoundInt64()))
 
 	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
-	rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64)
-	if err != nil {
+	if rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64); err != nil {
 		sublogger.Error().
 			Str("address", address).
 			Err(err).

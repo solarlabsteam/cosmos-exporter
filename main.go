@@ -164,6 +164,10 @@ func Execute(cmd *cobra.Command, args []string) {
 		ParamsHandler(w, r, grpcConn)
 	})
 
+	http.HandleFunc("/metrics/general", func(w http.ResponseWriter, r *http.Request) {
+		GeneralHandler(w, r, grpcConn)
+	})
+
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)
 	if err != nil {

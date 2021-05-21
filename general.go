@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
@@ -45,10 +46,19 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		[]string{"denom"},
 	)
 
+	generalSupplyTotalGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "cosmos_general_supply_total",
+			Help: "Total supply",
+		},
+		[]string{"denom"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(generalBondedTokensGauge)
 	registry.MustRegister(generalNotBondedTokensGauge)
 	registry.MustRegister(generalCommunityPoolGauge)
+	registry.MustRegister(generalSupplyTotalGauge)
 
 	var wg sync.WaitGroup
 
@@ -102,6 +112,39 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 					Msg("Could not get community pool coin")
 			} else {
 				generalCommunityPoolGauge.With(prometheus.Labels{
+					"denom": coin.Denom,
+				}).Set(value)
+			}
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying bank total supplyy")
+		queryStart := time.Now()
+
+		bankClient := banktypes.NewQueryClient(grpcConn)
+		response, err := bankClient.TotalSupply(
+			context.Background(),
+			&banktypes.QueryTotalSupplyRequest{},
+		)
+		if err != nil {
+			sublogger.Error().Err(err).Msg("Could not get bank total supplyy")
+			return
+		}
+
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying bank total supplyy")
+
+		for _, coin := range response.Supply {
+			if value, err := strconv.ParseFloat(coin.Amount.String(), 64); err != nil {
+				sublogger.Error().
+					Err(err).
+					Msg("Could not get total supply")
+			} else {
+				generalSupplyTotalGauge.With(prometheus.Labels{
 					"denom": coin.Denom,
 				}).Set(value)
 			}

@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -108,6 +109,26 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		},
 	)
 
+	paramsBaseProposerRewardGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "cosmos_params_base_proposer_reward",
+			Help: "Base proposer reward",
+		},
+	)
+
+	paramsBonusProposerRewardGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "cosmos_params_bonus_proposer_reward",
+			Help: "Bonus proposer reward",
+		},
+	)
+	paramsCommunityTaxGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "cosmos_params_community_tax",
+			Help: "Community tax",
+		},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(paramsMaxValidatorsGauge)
 	registry.MustRegister(paramsUnbondingTimeGauge)
@@ -120,6 +141,9 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 	registry.MustRegister(paramsSignedBlocksWindowGauge)
 	registry.MustRegister(paramsSlashFractionDoubleSign)
 	registry.MustRegister(paramsSlashFractionDowntime)
+	registry.MustRegister(paramsBaseProposerRewardGauge)
+	registry.MustRegister(paramsBonusProposerRewardGauge)
+	registry.MustRegister(paramsCommunityTaxGauge)
 
 	var wg sync.WaitGroup
 
@@ -254,6 +278,54 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				Msg("Could not parse slash fraction downtime")
 		} else {
 			paramsSlashFractionDowntime.Set(value)
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying global distribution params")
+		queryStart := time.Now()
+
+		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		paramsResponse, err := distributionClient.Params(
+			context.Background(),
+			&distributiontypes.QueryParamsRequest{},
+		)
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get global distribution params")
+			return
+		}
+
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying global distribution params")
+
+		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+		if value, err := strconv.ParseFloat(paramsResponse.Params.BaseProposerReward.String(), 64); err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not parse base proposer reward")
+		} else {
+			paramsBaseProposerRewardGauge.Set(value)
+		}
+
+		if value, err := strconv.ParseFloat(paramsResponse.Params.BonusProposerReward.String(), 64); err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not parse bonus proposer reward")
+		} else {
+			paramsBonusProposerRewardGauge.Set(value)
+		}
+
+		if value, err := strconv.ParseFloat(paramsResponse.Params.CommunityTax.String(), 64); err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not parse community rate")
+		} else {
+			paramsCommunityTaxGauge.Set(value)
 		}
 	}()
 	wg.Add(1)

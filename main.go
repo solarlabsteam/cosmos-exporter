@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
 
 	"github.com/rs/zerolog"
 
@@ -22,6 +24,7 @@ var (
 	Denom         string
 	ListenAddress string
 	NodeAddress   string
+	TendermintRpc string
 	LogLevel      string
 	Limit         uint64
 
@@ -32,6 +35,9 @@ var (
 	ValidatorPubkeyPrefix     string
 	ConsensusNodePrefix       string
 	ConsensusNodePubkeyPrefix string
+
+	ChainId     string
+	ConstLabels map[string]string
 )
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
@@ -148,6 +154,8 @@ func Execute(cmd *cobra.Command, args []string) {
 
 	defer grpcConn.Close()
 
+	setChainId()
+
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
 		WalletHandler(w, r, grpcConn)
 	})
@@ -175,6 +183,25 @@ func Execute(cmd *cobra.Command, args []string) {
 	}
 }
 
+func setChainId() {
+	client, err := tmrpc.New(TendermintRpc, "/websocket")
+	if err != nil {
+		log.Error().Err(err).Msg("Could not create Tendermint client")
+		return
+	}
+
+	status, err := client.Status(context.Background())
+	if err != nil {
+		log.Error().Err(err).Msg("Could not query Tendermint status")
+	}
+
+	log.Info().Str("network", status.NodeInfo.Network).Msg("Got network status from Tendermint")
+	ChainId = status.NodeInfo.Network
+	ConstLabels = map[string]string{
+		"chain_id": ChainId,
+	}
+}
+
 func main() {
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
 	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "uxprt", "Cosmos coin denom")
@@ -182,6 +209,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
+	rootCmd.PersistentFlags().StringVar(&TendermintRpc, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
 
 	// some networks, like Iris, have the different prefixes for address, validator and consensus node
 	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")

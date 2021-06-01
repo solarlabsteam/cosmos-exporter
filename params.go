@@ -27,105 +27,120 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	paramsMaxValidatorsGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_max_validators",
-			Help: "Active set length",
+			Name:        "cosmos_params_max_validators",
+			Help:        "Active set length",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsUnbondingTimeGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_unbonding_time",
-			Help: "Unbonding time, in seconds",
+			Name:        "cosmos_params_unbonding_time",
+			Help:        "Unbonding time, in seconds",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsBlocksPerYearGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_blocks_per_year",
-			Help: "Block per year",
+			Name:        "cosmos_params_blocks_per_year",
+			Help:        "Block per year",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsGoalBondedGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_goal_bonded",
-			Help: "Goal bonded",
+			Name:        "cosmos_params_goal_bonded",
+			Help:        "Goal bonded",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsInflationMinGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_inflation_min",
-			Help: "Min inflation",
+			Name:        "cosmos_params_inflation_min",
+			Help:        "Min inflation",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsInflationMaxGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_inflation_max",
-			Help: "Max inflation",
+			Name:        "cosmos_params_inflation_max",
+			Help:        "Max inflation",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsInflationRateChangeGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_inflation_rate_change",
-			Help: "Inflation rate change",
+			Name:        "cosmos_params_inflation_rate_change",
+			Help:        "Inflation rate change",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsDowntailJailDurationGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_downtail_jail_duration",
-			Help: "Downtime jail duration, in seconds",
+			Name:        "cosmos_params_downtail_jail_duration",
+			Help:        "Downtime jail duration, in seconds",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsMinSignedPerWindowGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_min_signed_per_window",
-			Help: "Minimal amount of blocks to sign per window to avoid slashing",
+			Name:        "cosmos_params_min_signed_per_window",
+			Help:        "Minimal amount of blocks to sign per window to avoid slashing",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsSignedBlocksWindowGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_signed_blocks_window",
-			Help: "Signed blocks window",
+			Name:        "cosmos_params_signed_blocks_window",
+			Help:        "Signed blocks window",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsSlashFractionDoubleSign := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_slash_fraction_double_sign",
-			Help: "% of tokens to be slashed if double signing",
+			Name:        "cosmos_params_slash_fraction_double_sign",
+			Help:        "% of tokens to be slashed if double signing",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsSlashFractionDowntime := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_slash_fraction_downtime",
-			Help: "% of tokens to be slashed if downtime",
+			Name:        "cosmos_params_slash_fraction_downtime",
+			Help:        "% of tokens to be slashed if downtime",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsBaseProposerRewardGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_base_proposer_reward",
-			Help: "Base proposer reward",
+			Name:        "cosmos_params_base_proposer_reward",
+			Help:        "Base proposer reward",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	paramsBonusProposerRewardGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_bonus_proposer_reward",
-			Help: "Bonus proposer reward",
+			Name:        "cosmos_params_bonus_proposer_reward",
+			Help:        "Bonus proposer reward",
+			ConstLabels: ConstLabels,
 		},
 	)
 	paramsCommunityTaxGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_params_community_tax",
-			Help: "Community tax",
+			Name:        "cosmos_params_community_tax",
+			Help:        "Community tax",
+			ConstLabels: ConstLabels,
 		},
 	)
 

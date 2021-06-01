@@ -134,6 +134,7 @@ You can pass the artuments to the executable file to configure it. Here is the p
 - `--denom` - the currency, for example, `uatom` for Cosmos. Defaults to `uxprt`
 - `--listen-address` - the address with port the node would listen to. For example, you can use it to redefine port or to make the exporter accessible from the outside by listening on `127.0.0.1`. Defaults to `:9300` (so it's accessible from the outside on port 9300)
 - `--node` - the gRPC node URL. Defaults to `localhost:9090`
+- `--tendermint-rpc` - Tendermint RPC URL to query node stats (specifically `chain-id`). Defaults to `http://localhost:26657`
 - `--log-devel` - logger level. Defaults to `info`. You can set it to `debug` to make it more verbose.
 - `--limit` - pagination limit for gRPC requests. Defaults to 1000.
 

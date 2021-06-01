@@ -27,45 +27,51 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 
 	generalBondedTokensGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_bonded_tokens",
-			Help: "Bonded tokens",
+			Name:        "cosmos_general_bonded_tokens",
+			Help:        "Bonded tokens",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	generalNotBondedTokensGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_not_bonded_tokens",
-			Help: "Not bonded tokens",
+			Name:        "cosmos_general_not_bonded_tokens",
+			Help:        "Not bonded tokens",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	generalCommunityPoolGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_community_pool",
-			Help: "Community pool",
+			Name:        "cosmos_general_community_pool",
+			Help:        "Community pool",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"denom"},
 	)
 
 	generalSupplyTotalGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_supply_total",
-			Help: "Total supply",
+			Name:        "cosmos_general_supply_total",
+			Help:        "Total supply",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"denom"},
 	)
 
 	generalInflationGauge := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_inflation",
-			Help: "Total supply",
+			Name:        "cosmos_general_inflation",
+			Help:        "Total supply",
+			ConstLabels: ConstLabels,
 		},
 	)
 
 	generalAnnualProvisions := prometheus.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "cosmos_general_annual_provisions",
-			Help: "Annual provisions",
+			Name:        "cosmos_general_annual_provisions",
+			Help:        "Annual provisions",
+			ConstLabels: ConstLabels,
 		},
 	)
 

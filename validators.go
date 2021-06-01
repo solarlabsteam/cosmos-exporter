@@ -31,72 +31,81 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 
 	validatorsCommissionGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_commission",
-			Help: "Commission of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_commission",
+			Help:        "Commission of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorsStatusGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_status",
-			Help: "Status of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_status",
+			Help:        "Status of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsJailedGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_jailed",
-			Help: "Jailed status of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_jailed",
+			Help:        "Jailed status of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsTokensGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_tokens",
-			Help: "Tokens of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_tokens",
+			Help:        "Tokens of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsDelegatorSharesGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_delegator_shares",
-			Help: "Delegator shares of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_delegator_shares",
+			Help:        "Delegator shares of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsMinSelfDelegationGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_min_self_delegation",
-			Help: "Self declared minimum self delegation shares of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_min_self_delegation",
+			Help:        "Self declared minimum self delegation shares of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsMissedBlocksGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_missed_blocks",
-			Help: "Missed blocks of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_missed_blocks",
+			Help:        "Missed blocks of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsRankGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_rank",
-			Help: "Rank of the Cosmos-based blockchain validator",
+			Name:        "cosmos_validators_rank",
+			Help:        "Rank of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)
 
 	validatorsIsActiveGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_validators_active",
-			Help: "1 if the Cosmos-based blockchain validator is in active set, 0 if no",
+			Name:        "cosmos_validators_active",
+			Help:        "1 if the Cosmos-based blockchain validator is in active set, 0 if no",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "moniker"},
 	)

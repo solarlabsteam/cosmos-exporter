@@ -36,40 +36,45 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	walletBalanceGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_wallet_balance",
-			Help: "Balance of the Cosmos-based blockchain wallet",
+			Name:        "cosmos_wallet_balance",
+			Help:        "Balance of the Cosmos-based blockchain wallet",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "denom"},
 	)
 
 	walletDelegationGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_wallet_delegations",
-			Help: "Delegations of the Cosmos-based blockchain wallet",
+			Name:        "cosmos_wallet_delegations",
+			Help:        "Delegations of the Cosmos-based blockchain wallet",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "denom", "delegated_to"},
 	)
 
 	walletRedelegationGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_wallet_redelegations",
-			Help: "Redlegations of the Cosmos-based blockchain wallet",
+			Name:        "cosmos_wallet_redelegations",
+			Help:        "Redlegations of the Cosmos-based blockchain wallet",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "denom", "redelegated_from", "redelegated_to"},
 	)
 
 	walletUnbondingsGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_wallet_unbondings",
-			Help: "Unbondings of the Cosmos-based blockchain wallet",
+			Name:        "cosmos_wallet_unbondings",
+			Help:        "Unbondings of the Cosmos-based blockchain wallet",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "denom", "unbonded_from"},
 	)
 
 	walletRewardsGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "cosmos_wallet_rewards",
-			Help: "Rewards of the Cosmos-based blockchain wallet",
+			Name:        "cosmos_wallet_rewards",
+			Help:        "Rewards of the Cosmos-based blockchain wallet",
+			ConstLabels: ConstLabels,
 		},
 		[]string{"address", "denom", "validator_address"},
 	)

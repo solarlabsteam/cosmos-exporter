@@ -42,7 +42,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Delegations of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "denom", "delegated_by", "chain_id"},
+		[]string{"address", "moniker", "denom", "delegated_by"},
 	)
 
 	validatorTokensGauge := prometheus.NewGaugeVec(
@@ -51,7 +51,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Tokens of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "chain_id"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorDelegatorSharesGauge := prometheus.NewGaugeVec(
@@ -60,7 +60,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Delegators shares of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "chain_id"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorCommissionRateGauge := prometheus.NewGaugeVec(
@@ -69,7 +69,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Commission rate of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "chain_id"},
+		[]string{"address", "moniker"},
 	)
 	validatorCommissionGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -77,7 +77,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Commission of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "denom", "chain_id"},
+		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorRewardsGauge := prometheus.NewGaugeVec(
@@ -86,7 +86,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Rewards of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "denom", "chain_id"},
+		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorUnbondingsGauge := prometheus.NewGaugeVec(
@@ -95,7 +95,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Unbondings of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "denom", "unbonded_by", "chain_id"},
+		[]string{"address", "moniker", "denom", "unbonded_by"},
 	)
 
 	validatorRedelegationsGauge := prometheus.NewGaugeVec(
@@ -104,7 +104,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Redelegations of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "denom", "redelegated_by", "redelegated_to", "chain_id"},
+		[]string{"address", "moniker", "denom", "redelegated_by", "redelegated_to"},
 	)
 
 	validatorMissedBlocksGauge := prometheus.NewGaugeVec(
@@ -113,7 +113,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Missed blocks of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "chain_id"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorRankGauge := prometheus.NewGaugeVec(
@@ -122,7 +122,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Rank of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker", "chain_id"},
+		[]string{"address", "moniker"},
 	)
 
 	validatorIsActiveGauge := prometheus.NewGaugeVec(

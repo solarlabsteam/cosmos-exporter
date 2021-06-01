@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -114,10 +115,18 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying balance")
 
-		walletBalanceGauge.With(prometheus.Labels{
-			"address": address,
-			"denom":   bankRes.GetBalance().Denom,
-		}).Set(float64(bankRes.GetBalance().Amount.Int64()))
+		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+		if value, err := strconv.ParseFloat(bankRes.Balance.Amount.String(), 64); err != nil {
+			sublogger.Error().
+				Str("address", address).
+				Err(err).
+				Msg("Could not parse balance")
+		} else {
+			walletBalanceGauge.With(prometheus.Labels{
+				"address": address,
+				"denom":   bankRes.GetBalance().Denom,
+			}).Set(value)
+		}
 	}()
 	wg.Add(1)
 
@@ -148,11 +157,19 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Finished querying delegations")
 
 		for _, delegation := range stakingRes.DelegationResponses {
-			walletDelegationGauge.With(prometheus.Labels{
-				"address":      address,
-				"denom":        delegation.Balance.Denom,
-				"delegated_to": delegation.Delegation.ValidatorAddress,
-			}).Set(float64(delegation.Balance.Amount.Int64()))
+			// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+			if value, err := strconv.ParseFloat(delegation.Balance.Amount.String(), 64); err != nil {
+				sublogger.Error().
+					Str("address", address).
+					Err(err).
+					Msg("Could not get delegation")
+			} else {
+				walletDelegationGauge.With(prometheus.Labels{
+					"address":      address,
+					"denom":        delegation.Balance.Denom,
+					"delegated_to": delegation.Delegation.ValidatorAddress,
+				}).Set(value)
+			}
 		}
 	}()
 	wg.Add(1)
@@ -186,7 +203,15 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		for _, unbonding := range stakingRes.UnbondingResponses {
 			var sum float64 = 0
 			for _, entry := range unbonding.Entries {
-				sum += float64(entry.Balance.Int64())
+				// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+				if value, err := strconv.ParseFloat(entry.Balance.String(), 64); err != nil {
+					sublogger.Error().
+						Str("address", address).
+						Err(err).
+						Msg("Could not parse unbonding delegation")
+				} else {
+					sum += value
+				}
 			}
 
 			walletUnbondingsGauge.With(prometheus.Labels{
@@ -227,7 +252,15 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		for _, redelegation := range stakingRes.RedelegationResponses {
 			var sum float64 = 0
 			for _, entry := range redelegation.Entries {
-				sum += float64(entry.Balance.Int64())
+				// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+				if value, err := strconv.ParseFloat(entry.Balance.String(), 64); err != nil {
+					sublogger.Error().
+						Str("address", address).
+						Err(err).
+						Msg("Could not parse redelegation")
+				} else {
+					sum += value
+				}
 			}
 
 			walletRedelegationGauge.With(prometheus.Labels{
@@ -267,11 +300,19 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 		for _, reward := range distributionRes.Rewards {
 			for _, entry := range reward.Reward {
-				walletRewardsGauge.With(prometheus.Labels{
-					"address":           address,
-					"denom":             entry.Denom,
-					"validator_address": reward.ValidatorAddress,
-				}).Set(float64(entry.Amount.RoundInt64()))
+				// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+				if value, err := strconv.ParseFloat(entry.Amount.String(), 64); err != nil {
+					sublogger.Error().
+						Str("address", address).
+						Err(err).
+						Msg("Could not parse reward")
+				} else {
+					walletRewardsGauge.With(prometheus.Labels{
+						"address":           address,
+						"denom":             entry.Denom,
+						"validator_address": reward.ValidatorAddress,
+					}).Set(value)
+				}
 			}
 		}
 	}()

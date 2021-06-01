@@ -97,9 +97,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		queryStart := time.Now()
 
 		bankClient := banktypes.NewQueryClient(grpcConn)
-		bankRes, err := bankClient.Balance(
+		bankRes, err := bankClient.AllBalances(
 			context.Background(),
-			&banktypes.QueryBalanceRequest{Address: myAddress.String(), Denom: Denom},
+			&banktypes.QueryAllBalancesRequest{Address: myAddress.String()},
 		)
 
 		if err != nil {
@@ -115,17 +115,19 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying balance")
 
-		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
-		if value, err := strconv.ParseFloat(bankRes.Balance.Amount.String(), 64); err != nil {
-			sublogger.Error().
-				Str("address", address).
-				Err(err).
-				Msg("Could not parse balance")
-		} else {
-			walletBalanceGauge.With(prometheus.Labels{
-				"address": address,
-				"denom":   bankRes.GetBalance().Denom,
-			}).Set(value)
+		for _, balance := range bankRes.Balances {
+			// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+			if value, err := strconv.ParseFloat(balance.Amount.String(), 64); err != nil {
+				sublogger.Error().
+					Str("address", address).
+					Err(err).
+					Msg("Could not parse balance")
+			} else {
+				walletBalanceGauge.With(prometheus.Labels{
+					"address": address,
+					"denom":   balance.Denom,
+				}).Set(value)
+			}
 		}
 	}()
 	wg.Add(1)

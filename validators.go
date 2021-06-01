@@ -229,7 +229,6 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			validatorsCommissionGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
 				"moniker": validator.Description.Moniker,
-				"denom":   Denom,
 			}).Set(rate)
 		}
 

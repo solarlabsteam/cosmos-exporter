@@ -51,7 +51,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Tokens of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker"},
+		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorDelegatorSharesGauge := prometheus.NewGaugeVec(
@@ -60,7 +60,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Help:        "Delegators shares of the Cosmos-based blockchain validator",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"address", "moniker"},
+		[]string{"address", "moniker", "denom"},
 	)
 
 	validatorCommissionRateGauge := prometheus.NewGaugeVec(
@@ -174,19 +174,29 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	validatorTokensGauge.With(prometheus.Labels{
 		"address": validator.Validator.OperatorAddress,
 		"moniker": validator.Validator.Description.Moniker,
-	}).Set(float64(validator.Validator.Tokens.Int64()))
+		"denom": Denom,
+	}).Set(float64(validator.Validator.Tokens.Int64()) / DenomCoefficient)
 
-	validatorDelegatorSharesGauge.With(prometheus.Labels{
-		"address": validator.Validator.OperatorAddress,
-		"moniker": validator.Validator.Description.Moniker,
-	}).Set(float64(validator.Validator.DelegatorShares.RoundInt64()))
+	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+	if value, err := strconv.ParseFloat(validator.Validator.DelegatorShares.String(), 64); err != nil {
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not parse delegator shares")
+	} else {
+		validatorDelegatorSharesGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+			"moniker": validator.Validator.Description.Moniker,
+			"denom": Denom,
+		}).Set(value / DenomCoefficient)
+	}
 
 	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
 	if rate, err := strconv.ParseFloat(validator.Validator.Commission.CommissionRates.Rate.String(), 64); err != nil {
 		sublogger.Error().
 			Str("address", address).
 			Err(err).
-			Msg("Could not get commission rate")
+			Msg("Could not parse commission rate")
 	} else {
 		validatorCommissionRateGauge.With(prometheus.Labels{
 			"address": validator.Validator.OperatorAddress,

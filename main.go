@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"math"
 
 	"google.golang.org/grpc"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 var (
@@ -38,6 +41,7 @@ var (
 
 	ChainId     string
 	ConstLabels map[string]string
+	DenomCoefficient float64
 )
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
@@ -155,6 +159,7 @@ func Execute(cmd *cobra.Command, args []string) {
 	defer grpcConn.Close()
 
 	setChainId()
+	setDenom(grpcConn)
 
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
 		WalletHandler(w, r, grpcConn)
@@ -202,9 +207,39 @@ func setChainId() {
 	}
 }
 
+func setDenom(grpcConn *grpc.ClientConn) {
+	bankClient := banktypes.NewQueryClient(grpcConn)
+	denoms, err := bankClient.DenomsMetadata(
+		context.Background(),
+		&banktypes.QueryDenomsMetadataRequest{},
+	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error querying denom")
+	}
+
+	metadata := denoms.Metadatas[0] // always using the first one
+	if Denom != "" { // using display currency
+		Denom = metadata.Display
+	}
+
+	for _, unit := range metadata.DenomUnits {
+		if unit.Denom == Denom {
+			DenomCoefficient = math.Pow10(int(unit.Exponent))
+			log.Info().
+				Str("denom", Denom).
+				Float64("coefficient", DenomCoefficient).
+				Msg("Got denom info")
+			return
+		}
+	}
+
+	log.Fatal().Msg("Could not find the denom info")
+}
+
 func main() {
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
-	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "uxprt", "Cosmos coin denom")
+	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "", "Cosmos coin denom")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")

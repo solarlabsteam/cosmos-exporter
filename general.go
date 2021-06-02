@@ -67,12 +67,14 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		},
 	)
 
-	generalAnnualProvisions := prometheus.NewGauge(
+	generalAnnualProvisions := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name:        "cosmos_general_annual_provisions",
 			Help:        "Annual provisions",
 			ConstLabels: ConstLabels,
 		},
+		[]string{"denom"},
+
 	)
 
 	registry := prometheus.NewRegistry()
@@ -228,7 +230,9 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 				Err(err).
 				Msg("Could not get annual provisions")
 		} else {
-			generalAnnualProvisions.Set(value)
+			generalAnnualProvisions.With(prometheus.Labels{
+				"denom": Denom,
+			}).Set(value / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)

@@ -125,8 +125,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			} else {
 				walletBalanceGauge.With(prometheus.Labels{
 					"address": address,
-					"denom":   balance.Denom,
-				}).Set(value)
+					"denom":  Denom,
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()
@@ -168,9 +168,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			} else {
 				walletDelegationGauge.With(prometheus.Labels{
 					"address":      address,
-					"denom":        delegation.Balance.Denom,
+					"denom":        Denom,
 					"delegated_to": delegation.Delegation.ValidatorAddress,
-				}).Set(value)
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()
@@ -220,7 +220,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				"address":       unbonding.DelegatorAddress,
 				"denom":         Denom, // unbonding does not have denom in response for some reason
 				"unbonded_from": unbonding.ValidatorAddress,
-			}).Set(sum)
+			}).Set(sum / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)
@@ -270,7 +270,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				"denom":            Denom, // redelegation does not have denom in response for some reason
 				"redelegated_from": redelegation.Redelegation.ValidatorSrcAddress,
 				"redelegated_to":   redelegation.Redelegation.ValidatorDstAddress,
-			}).Set(sum)
+			}).Set(sum / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)
@@ -311,9 +311,9 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 				} else {
 					walletRewardsGauge.With(prometheus.Labels{
 						"address":           address,
-						"denom":             entry.Denom,
+						"denom":             Denom,
 						"validator_address": reward.ValidatorAddress,
-					}).Set(value)
+					}).Set(value / DenomCoefficient)
 				}
 			}
 		}

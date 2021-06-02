@@ -219,11 +219,15 @@ func setDenom(grpcConn *grpc.ClientConn) {
 	}
 
 	metadata := denoms.Metadatas[0] // always using the first one
-	if Denom != "" { // using display currency
+	if Denom == "" { // using display currency
 		Denom = metadata.Display
 	}
 
 	for _, unit := range metadata.DenomUnits {
+		log.Debug().
+				Str("denom", unit.Denom).
+				Uint32("exponent", unit.Exponent).
+				Msg("Denom info")
 		if unit.Denom == Denom {
 			DenomCoefficient = math.Pow10(int(unit.Exponent))
 			log.Info().

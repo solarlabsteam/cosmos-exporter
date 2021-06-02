@@ -135,8 +135,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 					Msg("Could not get community pool coin")
 			} else {
 				generalCommunityPoolGauge.With(prometheus.Labels{
-					"denom": coin.Denom,
-				}).Set(value)
+					"denom": Denom,
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()
@@ -168,8 +168,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 					Msg("Could not get total supply")
 			} else {
 				generalSupplyTotalGauge.With(prometheus.Labels{
-					"denom": coin.Denom,
-				}).Set(value)
+					"denom": Denom,
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()

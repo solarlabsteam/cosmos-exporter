@@ -226,9 +226,9 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			validatorDelegationsGauge.With(prometheus.Labels{
 				"moniker":      validator.Validator.Description.Moniker,
 				"address":      delegation.Delegation.ValidatorAddress,
-				"denom":        delegation.Balance.Denom,
+				"denom":        Denom,
 				"delegated_by": delegation.Delegation.DelegatorAddress,
-			}).Set(float64(delegation.Balance.Amount.Int64()))
+			}).Set(float64(delegation.Balance.Amount.Int64()) / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)
@@ -271,8 +271,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				validatorCommissionGauge.With(prometheus.Labels{
 					"address": address,
 					"moniker": validator.Validator.Description.Moniker,
-					"denom":   commission.Denom,
-				}).Set(value)
+					"denom":   Denom,
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()
@@ -306,7 +306,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		for _, reward := range distributionRes.Rewards.Rewards {
 			// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
-			if rate, err := strconv.ParseFloat(reward.Amount.String(), 64); err != nil {
+			if value, err := strconv.ParseFloat(reward.Amount.String(), 64); err != nil {
 				sublogger.Error().
 					Str("address", address).
 					Err(err).
@@ -315,8 +315,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				validatorRewardsGauge.With(prometheus.Labels{
 					"address": address,
 					"moniker": validator.Validator.Description.Moniker,
-					"denom":   reward.Denom,
-				}).Set(rate)
+					"denom":   Denom,
+				}).Set(value / DenomCoefficient)
 			}
 		}
 	}()
@@ -359,7 +359,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"moniker":     validator.Validator.Description.Moniker,
 				"denom":       Denom, // unbonding does not have denom in response for some reason
 				"unbonded_by": unbonding.DelegatorAddress,
-			}).Set(sum)
+			}).Set(sum / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)
@@ -402,7 +402,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				"denom":          Denom, // redelegation does not have denom in response for some reason
 				"redelegated_by": redelegation.Redelegation.DelegatorAddress,
 				"redelegated_to": redelegation.Redelegation.ValidatorDstAddress,
-			}).Set(sum)
+			}).Set(sum / DenomCoefficient)
 		}
 	}()
 	wg.Add(1)

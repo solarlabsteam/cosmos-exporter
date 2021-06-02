@@ -260,11 +260,20 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Finished querying validator commission")
 
 		for _, commission := range distributionRes.Commission.Commission {
-			validatorCommissionGauge.With(prometheus.Labels{
-				"address": address,
-				"moniker": validator.Validator.Description.Moniker,
-				"denom":   commission.Denom,
-			}).Set(float64(commission.Amount.RoundInt64()))
+			// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
+			value, err := strconv.ParseFloat(commission.Amount.String(), 64)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("address", address).
+					Msg("Could not get validator commission")
+			} else {
+				validatorCommissionGauge.With(prometheus.Labels{
+					"address": address,
+					"moniker": validator.Validator.Description.Moniker,
+					"denom":   commission.Denom,
+				}).Set(value)
+			}
 		}
 	}()
 	wg.Add(1)

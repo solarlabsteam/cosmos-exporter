@@ -224,7 +224,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			log.Error().
 				Err(err).
 				Str("address", validator.OperatorAddress).
-				Msg("Could not get commission rate")
+				Msg("Could not get commission")
 		} else {
 			validatorsCommissionGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,

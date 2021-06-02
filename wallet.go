@@ -326,7 +326,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 	h.ServeHTTP(w, r)
 	sublogger.Info().
 		Str("method", "GET").
-		Str("endpoint", "/metrics/validator?address="+address).
+		Str("endpoint", "/metrics/wallet?address="+address).
 		Float64("request-time", time.Since(requestStart).Seconds()).
 		Msg("Request processed")
 }

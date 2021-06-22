@@ -191,13 +191,12 @@ func Execute(cmd *cobra.Command, args []string) {
 func setChainId() {
 	client, err := tmrpc.New(TendermintRpc, "/websocket")
 	if err != nil {
-		log.Error().Err(err).Msg("Could not create Tendermint client")
-		return
+		log.Fatal().Err(err).Msg("Could not create Tendermint client")
 	}
 
 	status, err := client.Status(context.Background())
 	if err != nil {
-		log.Error().Err(err).Msg("Could not query Tendermint status")
+		log.Fatal().Err(err).Msg("Could not query Tendermint status")
 	}
 
 	log.Info().Str("network", status.NodeInfo.Network).Msg("Got network status from Tendermint")

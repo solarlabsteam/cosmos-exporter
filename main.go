@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
-	"math"
 
 	"google.golang.org/grpc"
 
@@ -39,8 +39,8 @@ var (
 	ConsensusNodePrefix       string
 	ConsensusNodePubkeyPrefix string
 
-	ChainId     string
-	ConstLabels map[string]string
+	ChainId          string
+	ConstLabels      map[string]string
 	DenomCoefficient float64
 )
 
@@ -208,6 +208,16 @@ func setChainId() {
 }
 
 func setDenom(grpcConn *grpc.ClientConn) {
+	// if --denom and --denom-coefficient are both provided, use them
+	// instead of fetching them via gRPC. Can be useful for networks like osmosis.
+	if Denom != "" && DenomCoefficient != 0 {
+		log.Info().
+			Str("denom", Denom).
+			Float64("coefficient", DenomCoefficient).
+			Msg("Using provided denom and coefficient.")
+		return
+	}
+
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	denoms, err := bankClient.DenomsMetadata(
 		context.Background(),
@@ -219,15 +229,15 @@ func setDenom(grpcConn *grpc.ClientConn) {
 	}
 
 	metadata := denoms.Metadatas[0] // always using the first one
-	if Denom == "" { // using display currency
+	if Denom == "" {                // using display currency
 		Denom = metadata.Display
 	}
 
 	for _, unit := range metadata.DenomUnits {
 		log.Debug().
-				Str("denom", unit.Denom).
-				Uint32("exponent", unit.Exponent).
-				Msg("Denom info")
+			Str("denom", unit.Denom).
+			Uint32("exponent", unit.Exponent).
+			Msg("Denom info")
 		if unit.Denom == Denom {
 			DenomCoefficient = math.Pow10(int(unit.Exponent))
 			log.Info().
@@ -244,6 +254,7 @@ func setDenom(grpcConn *grpc.ClientConn) {
 func main() {
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
 	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "", "Cosmos coin denom")
+	rootCmd.PersistentFlags().Float64Var(&DenomCoefficient, "denom-coefficient", 0, "Denom coefficient")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")

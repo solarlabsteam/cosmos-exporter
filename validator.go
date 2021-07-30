@@ -10,6 +10,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	querytypes "github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -174,7 +175,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	validatorTokensGauge.With(prometheus.Labels{
 		"address": validator.Validator.OperatorAddress,
 		"moniker": validator.Validator.Description.Moniker,
-		"denom": Denom,
+		"denom":   Denom,
 	}).Set(float64(validator.Validator.Tokens.Int64()) / DenomCoefficient)
 
 	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
@@ -187,7 +188,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		validatorDelegatorSharesGauge.With(prometheus.Labels{
 			"address": validator.Validator.OperatorAddress,
 			"moniker": validator.Validator.Description.Moniker,
-			"denom": Denom,
+			"denom":   Denom,
 		}).Set(value / DenomCoefficient)
 	}
 
@@ -485,7 +486,11 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.Validators(
 			context.Background(),
-			&stakingtypes.QueryValidatorsRequest{},
+			&stakingtypes.QueryValidatorsRequest{
+				Pagination: &querytypes.PageRequest{
+					Limit: Limit,
+				},
+			},
 		)
 		if err != nil {
 			sublogger.Error().

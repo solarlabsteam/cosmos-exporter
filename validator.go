@@ -146,7 +146,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 	validatorJailedGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name:        "cosmos_validator_status",
+			Name:        "cosmos_validator_jailed",
 			Help:        "1 if the Cosmos-based blockchain validator is jailed, 0 if no",
 			ConstLabels: ConstLabels,
 		},

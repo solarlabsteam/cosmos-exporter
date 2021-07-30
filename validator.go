@@ -558,7 +558,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		// golang doesn't have a ternary operator, so we have to stick with this ugly solution
 		var active float64
 
-		if validatorRank+1 <= int(paramsRes.Params.MaxValidators) {
+		if validatorRank <= int(paramsRes.Params.MaxValidators) {
 			active = 1
 		} else {
 			active = 0

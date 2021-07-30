@@ -135,6 +135,24 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		[]string{"address", "moniker"},
 	)
 
+	validatorStatusGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name:        "cosmos_validator_status",
+			Help:        "Status of the Cosmos-based blockchain validator",
+			ConstLabels: ConstLabels,
+		},
+		[]string{"address", "moniker"},
+	)
+
+	validatorJailedGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name:        "cosmos_validator_status",
+			Help:        "1 if the Cosmos-based blockchain validator is jailed, 0 if no",
+			ConstLabels: ConstLabels,
+		},
+		[]string{"address", "moniker"},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
@@ -147,6 +165,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	registry.MustRegister(validatorMissedBlocksGauge)
 	registry.MustRegister(validatorRankGauge)
 	registry.MustRegister(validatorIsActiveGauge)
+	registry.MustRegister(validatorStatusGauge)
+	registry.MustRegister(validatorJailedGauge)
 
 	// doing this not in goroutine as we'll need the moniker value later
 	sublogger.Debug().
@@ -204,6 +224,24 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			"moniker": validator.Validator.Description.Moniker,
 		}).Set(rate)
 	}
+
+	validatorStatusGauge.With(prometheus.Labels{
+		"address": validator.Validator.OperatorAddress,
+		"moniker": validator.Validator.Description.Moniker,
+	}).Set(float64(validator.Validator.Status))
+
+	// golang doesn't have a ternary operator, so we have to stick with this ugly solution
+	var jailed float64
+
+	if validator.Validator.Jailed {
+		jailed = 1
+	} else {
+		jailed = 0
+	}
+	validatorJailedGauge.With(prometheus.Labels{
+		"address": validator.Validator.OperatorAddress,
+		"moniker": validator.Validator.Description.Moniker,
+	}).Set(float64(jailed))
 
 	var wg sync.WaitGroup
 

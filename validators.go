@@ -253,7 +253,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		validatorsTokensGauge.With(prometheus.Labels{
 			"address": validator.OperatorAddress,
 			"moniker": validator.Description.Moniker,
-			"denom": Denom,
+			"denom":   Denom,
 		}).Set(float64(validator.Tokens.Int64()) / DenomCoefficient)
 
 		// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
@@ -266,14 +266,14 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			validatorsDelegatorSharesGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
 				"moniker": validator.Description.Moniker,
-				"denom": Denom,
+				"denom":   Denom,
 			}).Set(value / DenomCoefficient)
 		}
 
 		validatorsMinSelfDelegationGauge.With(prometheus.Labels{
 			"address": validator.OperatorAddress,
 			"moniker": validator.Description.Moniker,
-			"denom": Denom,
+			"denom":   Denom,
 		}).Set(float64(validator.MinSelfDelegation.Int64()) / DenomCoefficient)
 
 		err = validator.UnpackInterfaces(interfaceRegistry) // Unpack interfaces, to populate the Anys' cached values
@@ -307,12 +307,19 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			sublogger.Debug().
 				Str("address", validator.OperatorAddress).
 				Msg("Could not get signing info for validator")
+			continue
 		}
 
-		validatorsMissedBlocksGauge.With(prometheus.Labels{
-			"address": validator.OperatorAddress,
-			"moniker": validator.Description.Moniker,
-		}).Set(float64(signingInfo.MissedBlocksCounter))
+		if validator.Status == stakingtypes.Bonded {
+			validatorsMissedBlocksGauge.With(prometheus.Labels{
+				"address": validator.OperatorAddress,
+				"moniker": validator.Description.Moniker,
+			}).Set(float64(signingInfo.MissedBlocksCounter))
+		} else {
+			sublogger.Trace().
+				Str("address", validator.OperatorAddress).
+				Msg("Validator is not active, not returning missed blocks amount.")
+		}
 
 		validatorsRankGauge.With(prometheus.Labels{
 			"address": validator.OperatorAddress,

@@ -228,7 +228,7 @@ func setDenom(grpcConn *grpc.ClientConn) {
 	}
 
 	if len(denoms.Metadatas) == 0 {
-		log.Fatal().Err(err).Msg("No denom infos. Try running the binary with --denom and --denom-coefficient to set them manually.")
+		log.Fatal().Msg("No denom infos. Try running the binary with --denom and --denom-coefficient to set them manually.")
 	}
 
 	metadata := denoms.Metadatas[0] // always using the first one

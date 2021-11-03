@@ -161,21 +161,7 @@ Additionally, you can pass a `--config` flag with a path to your config file (I 
 
 ## Which networks this is guaranteed to work?
 
-In theory, it should work on a Cosmos-based blockchains that expose a gRPC endpoint (for example, Sentinel hub v0.5.0 doesn't expose it, so it won't work with it). In practice, this definitely works with the following blockchains:
-
-- Persistence (with `--bech-prefix persistence --denom uxprt`)
-- Cosmos (with `--bech-prefix cosmos --denom uatom`). The queries can take a long time though (apparently more than 90 seconds), so adjust the scrape timings and timeouts accordingly.
-- Akash (with `--bech-prefix akash --denom uakt`)
-- Iris (with `--bech-account-prefix iaa --bech-consensus-node-prefix ica --bech-validator-prefix iva  --bech-account-pubkey-prefix iap --bech-consensus-node-pubkey-prefix icp --bech-validator-pubkey-prefix ip --denom uiris`)
-- crypto.org (with `--bech-account-prefix cro --bech-consensus-node-prefix crocnclcons --bech-validator-prefix crocncl  --bech-account-pubkey-prefix cropub --bech-consensus-node-pubkey-prefix crocnclconspub --bech-validator-pubkey-prefix crocnclpub --denom basecro`)
-
-
-This won't work with the following blockchains:
-- Sentinel - it doesn't expose gRPC endpoint for now. Should be fixed in sentinel-hub v0.6.0
-- Kava - for the same reason.
-- fetch.ai - for the same reason
-- Terra - for the same reason
-- Sifchain - for the same reason
+In theory, it should work on a Cosmos-based blockchains with cosmos-sdk >= 0.40.0 (that's when they added gRPC and IBC support). If this doesn't work on some chains, please file and issue and let's see what's up.
 
 ## How can I contribute?
 

@@ -7,15 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
@@ -74,7 +73,6 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			ConstLabels: ConstLabels,
 		},
 		[]string{"denom"},
-
 	)
 
 	registry := prometheus.NewRegistry()

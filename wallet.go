@@ -7,15 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
@@ -101,7 +100,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&banktypes.QueryAllBalancesRequest{Address: myAddress.String()},
 		)
-
 		if err != nil {
 			sublogger.Error().
 				Str("address", address).
@@ -125,7 +123,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			} else {
 				walletBalanceGauge.With(prometheus.Labels{
 					"address": address,
-					"denom":  Denom,
+					"denom":   Denom,
 				}).Set(value / DenomCoefficient)
 			}
 		}
@@ -144,7 +142,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryDelegatorDelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
-
 		if err != nil {
 			sublogger.Error().
 				Str("address", address).
@@ -188,7 +185,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryDelegatorUnbondingDelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
-
 		if err != nil {
 			sublogger.Error().
 				Str("address", address).
@@ -237,7 +233,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			context.Background(),
 			&stakingtypes.QueryRedelegationsRequest{DelegatorAddr: myAddress.String()},
 		)
-
 		if err != nil {
 			sublogger.Error().
 				Str("address", address).

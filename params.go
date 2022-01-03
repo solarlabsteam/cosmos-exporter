@@ -7,15 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
@@ -185,7 +184,6 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 		paramsMaxValidatorsGauge.Set(float64(paramsResponse.Params.MaxValidators))
 		paramsUnbondingTimeGauge.Set(paramsResponse.Params.UnbondingTime.Seconds())
-
 	}()
 	wg.Add(1)
 

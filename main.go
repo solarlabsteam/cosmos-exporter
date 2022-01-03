@@ -7,18 +7,14 @@ import (
 	"net/http"
 	"os"
 
-	"google.golang.org/grpc"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
-
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/rs/zerolog"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -222,7 +218,6 @@ func setDenom(grpcConn *grpc.ClientConn) {
 		context.Background(),
 		&banktypes.QueryDenomsMetadataRequest{},
 	)
-
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error querying denom")
 	}

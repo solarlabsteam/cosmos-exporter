@@ -192,11 +192,18 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		Float64("request-time", time.Since(validatorQueryStart).Seconds()).
 		Msg("Finished querying validator")
 
-	validatorTokensGauge.With(prometheus.Labels{
-		"address": validator.Validator.OperatorAddress,
-		"moniker": validator.Validator.Description.Moniker,
-		"denom":   Denom,
-	}).Set(float64(validator.Validator.Tokens.Int64()) / DenomCoefficient)
+	if value, err := strconv.ParseFloat(validator.Validator.Tokens.String(), 64); err != nil {
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not parse validator tokens")
+	} else {
+		validatorTokensGauge.With(prometheus.Labels{
+			"address": validator.Validator.OperatorAddress,
+			"moniker": validator.Validator.Description.Moniker,
+			"denom":   Denom,
+		}).Set(value / DenomCoefficient)
+	}
 
 	// because cosmos's dec doesn't have .toFloat64() method or whatever and returns everything as int
 	if value, err := strconv.ParseFloat(validator.Validator.DelegatorShares.String(), 64); err != nil {
@@ -272,12 +279,20 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Finished querying validator delegations")
 
 		for _, delegation := range stakingRes.DelegationResponses {
-			validatorDelegationsGauge.With(prometheus.Labels{
-				"moniker":      validator.Validator.Description.Moniker,
-				"address":      delegation.Delegation.ValidatorAddress,
-				"denom":        Denom,
-				"delegated_by": delegation.Delegation.DelegatorAddress,
-			}).Set(float64(delegation.Balance.Amount.Int64()) / DenomCoefficient)
+			value, err := strconv.ParseFloat(delegation.Balance.Amount.String(), 64)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("address", address).
+					Msg("Could not convert delegation entry")
+			} else {
+				validatorDelegationsGauge.With(prometheus.Labels{
+					"moniker":      validator.Validator.Description.Moniker,
+					"address":      delegation.Delegation.ValidatorAddress,
+					"denom":        Denom,
+					"delegated_by": delegation.Delegation.DelegatorAddress,
+				}).Set(value / DenomCoefficient)
+			}
 		}
 	}()
 	wg.Add(1)
@@ -400,7 +415,15 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		for _, unbonding := range stakingRes.UnbondingResponses {
 			var sum float64 = 0
 			for _, entry := range unbonding.Entries {
-				sum += float64(entry.Balance.Int64())
+				value, err := strconv.ParseFloat(entry.Balance.String(), 64)
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("address", address).
+						Msg("Could not convert unbonding delegation entry")
+				} else {
+					sum += value
+				}
 			}
 
 			validatorUnbondingsGauge.With(prometheus.Labels{
@@ -442,7 +465,15 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		for _, redelegation := range stakingRes.RedelegationResponses {
 			var sum float64 = 0
 			for _, entry := range redelegation.Entries {
-				sum += float64(entry.Balance.Int64())
+				value, err := strconv.ParseFloat(entry.Balance.String(), 64)
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("address", address).
+						Msg("Could not convert redelegation entry")
+				} else {
+					sum += value
+				}
 			}
 
 			validatorRedelegationsGauge.With(prometheus.Labels{
@@ -547,7 +578,17 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		// sorting by delegator shares to display rankings
 		sort.Slice(validators[:], func(i, j int) bool {
-			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
+			firstShares, firstErr := strconv.ParseFloat(validators[i].DelegatorShares.String(), 64)
+			secondShares, secondErr := strconv.ParseFloat(validators[j].DelegatorShares.String(), 64)
+
+			if firstErr != nil || secondErr != nil {
+				sublogger.Error().
+					Err(err).
+					Msg("Error converting delegator shares for sorting")
+				return true
+			}
+
+			return firstShares > secondShares
 		})
 
 		var validatorRank int

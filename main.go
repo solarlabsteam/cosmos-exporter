@@ -149,12 +149,10 @@ func Execute(cmd *cobra.Command, args []string) {
 		grpc.WithInsecure(),
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
 	}
 
-	defer grpcConn.Close()
-
-	setChainId()
+	setChainID()
 	setDenom(grpcConn)
 
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +182,7 @@ func Execute(cmd *cobra.Command, args []string) {
 	}
 }
 
-func setChainId() {
+func setChainID() {
 	client, err := tmrpc.New(TendermintRpc, "/websocket")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not create Tendermint client")

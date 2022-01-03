@@ -151,7 +151,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		validators = validatorsResponse.Validators
 
 		// sorting by delegator shares to display rankings
-		sort.Slice(validators[:], func(i, j int) bool {
+		sort.Slice(validators, func(i, j int) bool {
 			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
 		})
 	}()
@@ -247,7 +247,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		validatorsJailedGauge.With(prometheus.Labels{
 			"address": validator.OperatorAddress,
 			"moniker": validator.Description.Moniker,
-		}).Set(float64(jailed))
+		}).Set(jailed)
 
 		validatorsTokensGauge.With(prometheus.Labels{
 			"address": validator.OperatorAddress,

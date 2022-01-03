@@ -1,0 +1,41 @@
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - ifElseChain
+  gosec:
+    excludes:
+      - G402
+      - G404
+  revive:
+    rules:
+      - name: var-declaration
+        disabled: true
+
+linters:
+  enable-all: true
+  disable:
+    - prealloc
+    - lll
+    - dupl
+    - funlen
+    - wsl
+    - gomnd
+    - unparam
+    - goerr113
+    - nestif
+    - errcheck
+    - golint
+    - scopelint
+    - maligned
+    - interfacer
+    - wrapcheck
+    - varnamelen
+    - tagliatelle
+    - exhaustivestruct
+    - gomoddirectives
+    - ireturn
+    - nlreturn
+    - cyclop
+    - errorlint
+    - noctx
+    - gocognit

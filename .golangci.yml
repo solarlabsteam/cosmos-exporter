@@ -39,3 +39,6 @@ linters:
     - errorlint
     - noctx
     - gocognit
+    - gocyclo
+    - promlinter
+    - gochecknoglobals

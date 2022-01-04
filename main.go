@@ -23,7 +23,7 @@ var (
 	Denom         string
 	ListenAddress string
 	NodeAddress   string
-	TendermintRpc string
+	TendermintRPC string
 	LogLevel      string
 	Limit         uint64
 
@@ -35,7 +35,7 @@ var (
 	ConsensusNodePrefix       string
 	ConsensusNodePubkeyPrefix string
 
-	ChainId          string
+	ChainID          string
 	ConstLabels      map[string]string
 	DenomCoefficient float64
 )
@@ -183,7 +183,7 @@ func Execute(cmd *cobra.Command, args []string) {
 }
 
 func setChainID() {
-	client, err := tmrpc.New(TendermintRpc, "/websocket")
+	client, err := tmrpc.New(TendermintRPC, "/websocket")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not create Tendermint client")
 	}
@@ -194,9 +194,9 @@ func setChainID() {
 	}
 
 	log.Info().Str("network", status.NodeInfo.Network).Msg("Got network status from Tendermint")
-	ChainId = status.NodeInfo.Network
+	ChainID = status.NodeInfo.Network
 	ConstLabels = map[string]string{
-		"chain_id": ChainId,
+		"chain_id": ChainID,
 	}
 }
 
@@ -255,7 +255,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
-	rootCmd.PersistentFlags().StringVar(&TendermintRpc, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
+	rootCmd.PersistentFlags().StringVar(&TendermintRPC, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
 
 	// some networks, like Iris, have the different prefixes for address, validator and consensus node
 	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")

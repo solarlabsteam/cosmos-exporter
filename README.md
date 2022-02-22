@@ -5,6 +5,12 @@
 
 cosmos-exporter is a Prometheus scraper that fetches the data from a full node of a Cosmos-based blockchain via gRPC.
 
+## Where to get container image?
+
+```sh
+docker pull ghcr.io/solarlabsteam/cosmos-exporter:latest
+```
+
 ## What can I use it for?
 
 You can run a full node, run cosmos-exporter on the same host, set up Prometheus to scrape the data from it (see below for instructions), then set up Grafana to visualize the data coming from the exporter and probably add some alerting. Here are some examples of Grafana dashboards we created for ourselves:

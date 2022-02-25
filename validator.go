@@ -575,10 +575,15 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 		validators := stakingRes.Validators
 
-		// sorting by delegator shares to display rankings
+		// sorting by delegator shares to display rankings (unbonded go last)
 		sort.Slice(validators, func(i, j int) bool {
 			firstShares, firstErr := strconv.ParseFloat(validators[i].DelegatorShares.String(), 64)
 			secondShares, secondErr := strconv.ParseFloat(validators[j].DelegatorShares.String(), 64)
+			if !validators[i].IsBonded() && validators[j].IsBonded() {
+				return false
+			} else if validators[i].IsBonded() && !validators[j].IsBonded() {
+				return true
+			}
 
 			if firstErr != nil || secondErr != nil {
 				sublogger.Error().

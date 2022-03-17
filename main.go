@@ -25,6 +25,7 @@ var (
 	NodeAddress   string
 	TendermintRPC string
 	LogLevel      string
+	JsonOutput    bool
 	Limit         uint64
 
 	Prefix                    string
@@ -47,17 +48,14 @@ var rootCmd = &cobra.Command{
 	Long: "Scrape the data about the validators set, specific validators or wallets in the Cosmos network.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if ConfigPath == "" {
-			log.Info().Msg("Config file not provided")
 			setBechPrefixes(cmd)
 			return nil
 		}
 
-		log.Info().Msg("Config file provided")
-
 		viper.SetConfigFile(ConfigPath)
 		if err := viper.ReadInConfig(); err != nil {
-			log.Info().Err(err).Msg("Error reading config file")
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				log.Info().Err(err).Msg("Error reading config file")
 				return err
 			}
 		}
@@ -121,6 +119,10 @@ func Execute(cmd *cobra.Command, args []string) {
 	logLevel, err := zerolog.ParseLevel(LogLevel)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not parse log level")
+	}
+
+	if JsonOutput {
+		log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 	}
 
 	zerolog.SetGlobalLevel(logLevel)
@@ -256,6 +258,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
 	rootCmd.PersistentFlags().StringVar(&TendermintRPC, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
+	rootCmd.PersistentFlags().BoolVar(&JsonOutput, "json", false, "Output logs as JSON")
 
 	// some networks, like Iris, have the different prefixes for address, validator and consensus node
 	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")

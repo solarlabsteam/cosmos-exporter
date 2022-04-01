@@ -36,15 +36,6 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		return
 	}
 
-	validatorDelegationsGauge := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_validator_delegations",
-			Help:        "Delegations of the Cosmos-based blockchain validator",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"address", "moniker", "denom", "delegated_by"},
-	)
-
 	validatorTokensGauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name:        "cosmos_validator_tokens",
@@ -153,7 +144,6 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	)
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(validatorDelegationsGauge)
 	registry.MustRegister(validatorTokensGauge)
 	registry.MustRegister(validatorDelegatorSharesGauge)
 	registry.MustRegister(validatorCommissionRateGauge)
@@ -250,51 +240,6 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	}).Set(jailed)
 
 	var wg sync.WaitGroup
-
-	go func() {
-		defer wg.Done()
-
-		sublogger.Debug().
-			Str("address", address).
-			Msg("Started querying validator delegations")
-		queryStart := time.Now()
-
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
-		stakingRes, err := stakingClient.ValidatorDelegations(
-			context.Background(),
-			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
-		)
-		if err != nil {
-			sublogger.Error().
-				Str("address", address).
-				Err(err).
-				Msg("Could not get validator delegations")
-			return
-		}
-
-		sublogger.Debug().
-			Str("address", address).
-			Float64("request-time", time.Since(queryStart).Seconds()).
-			Msg("Finished querying validator delegations")
-
-		for _, delegation := range stakingRes.DelegationResponses {
-			value, err := strconv.ParseFloat(delegation.Balance.Amount.String(), 64)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("address", address).
-					Msg("Could not convert delegation entry")
-			} else {
-				validatorDelegationsGauge.With(prometheus.Labels{
-					"moniker":      validator.Validator.Description.Moniker,
-					"address":      delegation.Delegation.ValidatorAddress,
-					"denom":        Denom,
-					"delegated_by": delegation.Delegation.DelegatorAddress,
-				}).Set(value / DenomCoefficient)
-			}
-		}
-	}()
-	wg.Add(1)
 
 	go func() {
 		defer wg.Done()

@@ -2,13 +2,14 @@
 
 ![Latest release](https://img.shields.io/github/v/release/solarlabsteam/cosmos-exporter)
 [![Actions Status](https://github.com/solarlabsteam/cosmos-exporter/workflows/test/badge.svg)](https://github.com/solarlabsteam/cosmos-exporter/actions)
+This project is forked from [solarlabsteam/cosmos-exporter](https://github.com/solarlabsteam/cosmos-exporter) with extra container release and removes heavy requests. Make this exporter more focused on operating purposes for system operators.
 
 cosmos-exporter is a Prometheus scraper that fetches the data from a full node of a Cosmos-based blockchain via gRPC.
 
 ## Where to get container image?
 
 ```sh
-docker pull ghcr.io/solarlabsteam/cosmos-exporter:latest
+docker pull ghcr.io/stakefish/cosmos-exporter:latest
 ```
 
 ## What can I use it for?
@@ -21,7 +22,7 @@ You can run a full node, run cosmos-exporter on the same host, set up Prometheus
 
 ## How can I set it up?
 
-First of all, you need to download the latest release from [the releases page](https://github.com/solarlabsteam/cosmos-exporter/releases/). After that, you should unzip it and you are ready to go:
+First of all, you need to download the latest release from [the releases page](https://github.com/stakefish/cosmos-exporter/releases/). After that, you should unzip it and you are ready to go:
 
 ```sh
 wget <the link from the releases page>

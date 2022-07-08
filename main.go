@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	nelog "github.com/go-kit/log"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/gorilla/mux"
@@ -178,7 +180,7 @@ func Execute(cmd *cobra.Command, args []string) {
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	server := &http.Server{Addr: ListenAddress, Handler: router}
-	if err := web.ListenAndServe(server, WebConfigPath, nil); err != nil {
+	if err := web.ListenAndServe(server, WebConfigPath, nelog.NewLogfmtLogger(os.Stdout)); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }

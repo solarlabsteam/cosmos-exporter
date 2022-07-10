@@ -7,11 +7,10 @@ import (
 	"net/http"
 	"os"
 
-	nelog "github.com/go-kit/log"
+	gokitlog "github.com/go-kit/log"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/gorilla/mux"
 	"github.com/prometheus/exporter-toolkit/web"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -171,16 +170,17 @@ func Execute(cmd *cobra.Command, args []string) {
 			handler(w, r, grpcConn)
 		}
 	}
-	router := mux.NewRouter()
-	router.HandleFunc("/metrics/wallet", makeHandler(WalletHandler, grpcConn))
-	router.HandleFunc("/metrics/validator", makeHandler(ValidatorHandler, grpcConn))
-	router.HandleFunc("/metrics/validators", makeHandler(ValidatorsHandler, grpcConn))
-	router.HandleFunc("/metrics/params", makeHandler(ParamsHandler, grpcConn))
-	router.HandleFunc("/metrics/general", makeHandler(GeneralHandler, grpcConn))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics/wallet", makeHandler(WalletHandler, grpcConn))
+	mux.HandleFunc("/metrics/validator", makeHandler(ValidatorHandler, grpcConn))
+	mux.HandleFunc("/metrics/validators", makeHandler(ValidatorsHandler, grpcConn))
+	mux.HandleFunc("/metrics/params", makeHandler(ParamsHandler, grpcConn))
+	mux.HandleFunc("/metrics/general", makeHandler(GeneralHandler, grpcConn))
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
-	server := &http.Server{Addr: ListenAddress, Handler: router}
-	if err := web.ListenAndServe(server, WebConfigPath, nelog.NewLogfmtLogger(os.Stdout)); err != nil {
+	server := &http.Server{Addr: ListenAddress, Handler: mux}
+	stdlog := gokitlog.NewLogfmtLogger(log.Level(zerolog.InfoLevel))
+	if err := web.ListenAndServe(server, WebConfigPath, stdlog); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }

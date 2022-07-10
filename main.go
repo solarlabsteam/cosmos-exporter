@@ -179,8 +179,7 @@ func Execute(cmd *cobra.Command, args []string) {
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	server := &http.Server{Addr: ListenAddress, Handler: mux}
-	stdlog := gokitlog.NewLogfmtLogger(log.Level(zerolog.InfoLevel))
-	if err := web.ListenAndServe(server, WebConfigPath, stdlog); err != nil {
+	if err := web.ListenAndServe(server, WebConfigPath, gokitlog.NewLogfmtLogger(log)); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }

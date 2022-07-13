@@ -251,6 +251,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 	var wg sync.WaitGroup
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -294,8 +295,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -339,8 +340,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -383,8 +384,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -433,8 +434,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			}).Set(sum / DenomCoefficient)
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -484,8 +485,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			}).Set(sum / DenomCoefficient)
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -541,8 +542,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			"address": address,
 		}).Set(float64(slashingRes.ValSigningInfo.MissedBlocksCounter))
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -647,7 +648,6 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			"moniker": validator.Validator.Description.Moniker,
 		}).Set(active)
 	}()
-	wg.Add(1)
 
 	wg.Wait()
 

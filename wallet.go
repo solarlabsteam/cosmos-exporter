@@ -88,6 +88,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 	var wg sync.WaitGroup
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().
@@ -128,8 +129,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().
@@ -171,8 +172,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().
@@ -219,8 +220,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			}).Set(sum / DenomCoefficient)
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().
@@ -268,8 +269,8 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			}).Set(sum / DenomCoefficient)
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -313,7 +314,6 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			}
 		}
 	}()
-	wg.Add(1)
 
 	wg.Wait()
 

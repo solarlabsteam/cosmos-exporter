@@ -1,8 +1,7 @@
 name: build
 
 on:
-    tags:
-      - 'v*'
+  push:
 
 jobs:
   build:

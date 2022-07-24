@@ -137,6 +137,7 @@ You can pass the artuments to the executable file to configure it. Here is the p
 - `--tendermint-rpc` - Tendermint RPC URL to query node stats (specifically `chain-id`). Defaults to `http://localhost:26657`
 - `--log-devel` - logger level. Defaults to `info`. You can set it to `debug` to make it more verbose.
 - `--limit` - pagination limit for gRPC requests. Defaults to 1000.
+- `--json` - output logs as JSON. Useful if you don't read it on servers but instead use logging aggregation solutions such as ELK stack.
 
 
 You can also specify custom Bech32 prefixes for wallets, validators, consensus nodes, and their pubkeys by using the following params:

@@ -126,6 +126,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 
 	var wg sync.WaitGroup
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying validators")
@@ -155,8 +156,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
 		})
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying validators signing infos")
@@ -183,8 +184,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			Msg("Finished querying validator signing infos")
 		signingInfos = signingInfosResponse.Info
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying staking params")
@@ -207,7 +208,6 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			Msg("Finished querying staking params")
 		validatorSetLength = paramsResponse.Params.MaxValidators
 	}()
-	wg.Add(1)
 
 	wg.Wait()
 

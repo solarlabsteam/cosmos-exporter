@@ -85,6 +85,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 
 	var wg sync.WaitGroup
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying staking pool")
@@ -107,8 +108,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		generalBondedTokensGauge.Set(float64(response.Pool.BondedTokens.Int64()))
 		generalNotBondedTokensGauge.Set(float64(response.Pool.NotBondedTokens.Int64()))
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying distribution community pool")
@@ -140,8 +141,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying bank total supply")
@@ -173,8 +174,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			}
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying inflation")
@@ -202,8 +203,8 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			generalInflationGauge.Set(value)
 		}
 	}()
-	wg.Add(1)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		sublogger.Debug().Msg("Started querying annual provisions")
@@ -233,7 +234,6 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			}).Set(value / DenomCoefficient)
 		}
 	}()
-	wg.Add(1)
 
 	wg.Wait()
 

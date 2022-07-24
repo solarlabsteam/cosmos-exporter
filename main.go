@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"os"
 
+	gokitlog "github.com/go-kit/log"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/prometheus/exporter-toolkit/web"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -18,7 +21,8 @@ import (
 )
 
 var (
-	ConfigPath string
+	ConfigPath    string
+	WebConfigPath string
 
 	Denom         string
 	ListenAddress string
@@ -138,6 +142,7 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).
 		Str("--log-level", LogLevel).
+		Str("--web-config", WebConfigPath).
 		Msg("Started with following parameters")
 
 	config := sdk.GetConfig()
@@ -157,29 +162,24 @@ func Execute(cmd *cobra.Command, args []string) {
 	setChainID()
 	setDenom(grpcConn)
 
-	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
-		WalletHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/validator", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/validators", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorsHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/params", func(w http.ResponseWriter, r *http.Request) {
-		ParamsHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/general", func(w http.ResponseWriter, r *http.Request) {
-		GeneralHandler(w, r, grpcConn)
-	})
+	makeHandler := func(
+		handler func(http.ResponseWriter, *http.Request, *grpc.ClientConn),
+		grpcConn *grpc.ClientConn,
+	) func(http.ResponseWriter, *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
+			handler(w, r, grpcConn)
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics/wallet", makeHandler(WalletHandler, grpcConn))
+	mux.HandleFunc("/metrics/validator", makeHandler(ValidatorHandler, grpcConn))
+	mux.HandleFunc("/metrics/validators", makeHandler(ValidatorsHandler, grpcConn))
+	mux.HandleFunc("/metrics/params", makeHandler(ParamsHandler, grpcConn))
+	mux.HandleFunc("/metrics/general", makeHandler(GeneralHandler, grpcConn))
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
-	err = http.ListenAndServe(ListenAddress, nil)
-	if err != nil {
+	server := &http.Server{Addr: ListenAddress, Handler: mux}
+	if err := web.ListenAndServe(server, WebConfigPath, gokitlog.NewLogfmtLogger(log)); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }
@@ -251,6 +251,7 @@ func setDenom(grpcConn *grpc.ClientConn) {
 
 func main() {
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
+	rootCmd.PersistentFlags().StringVar(&WebConfigPath, "web-config", "", "TLS config file path")
 	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "", "Cosmos coin denom")
 	rootCmd.PersistentFlags().Float64Var(&DenomCoefficient, "denom-coefficient", 0, "Denom coefficient")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")

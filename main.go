@@ -39,6 +39,7 @@ var (
 	ChainID          string
 	ConstLabels      map[string]string
 	DenomCoefficient float64
+	DenomExponent    uint64
 )
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
@@ -135,6 +136,8 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--bech-consensus-node-prefix", ConsensusNodePrefix).
 		Str("--bech-consensus-node-pubkey-prefix", ConsensusNodePubkeyPrefix).
 		Str("--denom", Denom).
+		Str("--denom-cofficient", fmt.Sprintf("%f", DenomCoefficient)).
+		Str("--denom-exponent", fmt.Sprintf("%d", DenomExponent)).
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).
 		Str("--log-level", LogLevel).
@@ -203,13 +206,9 @@ func setChainID() {
 }
 
 func setDenom(grpcConn *grpc.ClientConn) {
-	// if --denom and --denom-coefficient are both provided, use them
+	// if --denom and (--denom-coefficient or --denom-exponent) are provided, use them
 	// instead of fetching them via gRPC. Can be useful for networks like osmosis.
-	if Denom != "" && DenomCoefficient != 0 {
-		log.Info().
-			Str("denom", Denom).
-			Float64("coefficient", DenomCoefficient).
-			Msg("Using provided denom and coefficient.")
+	if isUserProvidedAndHandled := checkAndHandleDenomInfoProvidedByUser(); isUserProvidedAndHandled {
 		return
 	}
 
@@ -249,10 +248,43 @@ func setDenom(grpcConn *grpc.ClientConn) {
 	log.Fatal().Msg("Could not find the denom info")
 }
 
+func checkAndHandleDenomInfoProvidedByUser() bool {
+
+	if Denom != "" {
+		if DenomCoefficient != 1 && DenomExponent != 0 {
+			log.Fatal().Msg("denom-coefficient and denom-exponent are both provided. Must provide only one")
+		}
+
+		if DenomCoefficient != 1 {
+			log.Info().
+				Str("denom", Denom).
+				Float64("coefficient", DenomCoefficient).
+				Msg("Using provided denom and coefficient.")
+			return true
+		}
+
+		if DenomExponent != 0 {
+			DenomCoefficient = math.Pow10(int(DenomExponent))
+			log.Info().
+				Str("denom", Denom).
+				Uint64("exponent", DenomExponent).
+				Float64("calculated coefficient", DenomCoefficient).
+				Msg("Using provided denom and denom exponent and calculating coefficient.")
+			return true
+		}
+
+		return false
+	}
+
+	return false
+
+}
+
 func main() {
 	rootCmd.PersistentFlags().StringVar(&ConfigPath, "config", "", "Config file path")
 	rootCmd.PersistentFlags().StringVar(&Denom, "denom", "", "Cosmos coin denom")
-	rootCmd.PersistentFlags().Float64Var(&DenomCoefficient, "denom-coefficient", 0, "Denom coefficient")
+	rootCmd.PersistentFlags().Float64Var(&DenomCoefficient, "denom-coefficient", 1, "Denom coefficient")
+	rootCmd.PersistentFlags().Uint64Var(&DenomExponent, "denom-exponent", 0, "Denom exponent")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")

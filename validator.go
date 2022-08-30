@@ -557,7 +557,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			context.Background(),
 			&stakingtypes.QueryValidatorsRequest{
 				Pagination: &querytypes.PageRequest{
-					Limit: 99999,
+					Limit: 50,
 				},
 			},
 		)

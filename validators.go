@@ -137,7 +137,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			context.Background(),
 			&stakingtypes.QueryValidatorsRequest{
 				Pagination: &querytypes.PageRequest{
-					Limit: Limit,
+					Limit: 1000,
 				},
 			},
 		)
@@ -168,7 +168,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			context.Background(),
 			&slashingtypes.QuerySigningInfosRequest{
 				Pagination: &querytypes.PageRequest{
-					Limit: Limit,
+					Limit: 1000,
 				},
 			},
 		)

@@ -261,16 +261,32 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		queryStart := time.Now()
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
-		stakingRes, err := stakingClient.ValidatorDelegations(
-			context.Background(),
-			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
-		)
-		if err != nil {
-			sublogger.Error().
-				Str("address", address).
-				Err(err).
-				Msg("Could not get validator delegations")
-			return
+		stakingResults := []stakingtypes.DelegationResponse{}
+		pagination := &querytypes.PageRequest{}
+
+		for {
+			stakingRes, err := stakingClient.ValidatorDelegations(
+				context.Background(),
+				&stakingtypes.QueryValidatorDelegationsRequest{
+					ValidatorAddr: myAddress.String(),
+					Pagination:    pagination,
+				},
+			)
+
+			if err != nil {
+				sublogger.Error().
+					Str("address", address).
+					Err(err).
+					Msg("Could not get validator delegations")
+				return
+			}
+
+			stakingResults = append(stakingResults, stakingRes.DelegationResponses...)
+			pagination.Key = stakingRes.Pagination.NextKey
+
+			if pagination.Key == nil {
+				break
+			}
 		}
 
 		sublogger.Debug().
@@ -278,7 +294,8 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying validator delegations")
 
-		for _, delegation := range stakingRes.DelegationResponses {
+		for _, delegation := range stakingResults {
+
 			value, err := strconv.ParseFloat(delegation.Balance.Amount.String(), 64)
 			if err != nil {
 				log.Error().

@@ -5,7 +5,7 @@ ENV GOPATH=/go
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-RUN git clone "https://github.com/validance/cosmos-exporter" /exporter
+RUN git clone "https://github.com/solarlabsteam/cosmos-exporter" /exporter
 WORKDIR /exporter
 RUN go install
 

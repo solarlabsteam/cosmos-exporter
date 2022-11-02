@@ -180,6 +180,10 @@ func Execute(cmd *cobra.Command, args []string) {
 		GeneralHandler(w, r, grpcConn)
 	})
 
+	http.HandleFunc("/metrics/proposals", func(w http.ResponseWriter, r *http.Request) {
+		ProposalsHandler(w, r, grpcConn)
+	})
+
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)
 	if err != nil {

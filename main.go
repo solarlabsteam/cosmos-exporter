@@ -184,6 +184,14 @@ func Execute(cmd *cobra.Command, args []string) {
 		ProposalsHandler(w, r, grpcConn)
 	})
 
+	http.HandleFunc("/metrics/delegator", func(w http.ResponseWriter, r *http.Request) {
+		DelegatorHandler(w, r, grpcConn)
+	})
+
+	http.HandleFunc("/metrics/upgrade", func(w http.ResponseWriter, r *http.Request) {
+		UpgradeHandler(w, r, grpcConn)
+	})
+
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)
 	if err != nil {

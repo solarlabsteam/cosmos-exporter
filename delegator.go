@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -61,7 +60,7 @@ func DelegatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			&stakingtypes.QueryValidatorDelegationsRequest{
 				ValidatorAddr: valAddress.String(),
 				Pagination: &querytypes.PageRequest{
-					Limit: 1000,
+					Limit: Limit,
 				},
 			},
 		)
@@ -78,7 +77,6 @@ func DelegatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying delegators")
 
-		fmt.Println(delegatorRes)
 		delegatorTotalGauge.With(prometheus.Labels{
 			"validator_address": validatorAddress,
 		}).Set(float64(len(delegatorRes.DelegationResponses)))

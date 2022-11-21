@@ -340,13 +340,22 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		}
 
 		if !found {
-			sublogger.Debug().
-				Str("address", validator.OperatorAddress).
-				Msg("Could not get signing info for validator")
-			continue
+			slashingClient := slashingtypes.NewQueryClient(grpcConn)
+			slashingRes, err := slashingClient.SigningInfo(
+				context.Background(),
+				&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},
+			)
+			if err != nil {
+				sublogger.Debug().
+					Str("address", validator.OperatorAddress).
+					Msg("Could not get signing info for validator")
+				continue
+			}
+			found = true
+			signingInfo = slashingRes.ValSigningInfo
 		}
 
-		if validator.Status == stakingtypes.Bonded {
+		if found && (validator.Status == stakingtypes.Bonded) {
 			validatorsMissedBlocksGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
 				"moniker": validator.Description.Moniker,

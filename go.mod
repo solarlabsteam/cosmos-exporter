@@ -15,5 +15,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/tendermint/tendermint v0.34.9
+	golang.org/x/sys v0.2.0 // indirect
 	google.golang.org/grpc v1.35.0
 )

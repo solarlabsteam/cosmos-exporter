@@ -151,9 +151,9 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			Msg("Finished querying validators")
 		validators = validatorsResponse.Validators
 
-		// sorting by delegator shares to display rankings
+		// sorting by delegator tokens to display rankings
 		sort.Slice(validators, func(i, j int) bool {
-			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
+			return validators[i].Tokens.GT(validators[j].Tokens)
 		})
 	}()
 

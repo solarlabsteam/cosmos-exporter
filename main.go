@@ -136,7 +136,7 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--bech-consensus-node-prefix", ConsensusNodePrefix).
 		Str("--bech-consensus-node-pubkey-prefix", ConsensusNodePubkeyPrefix).
 		Str("--denom", Denom).
-		Str("--denom-cofficient", fmt.Sprintf("%f", DenomCoefficient)).
+		Str("--denom-coefficient", fmt.Sprintf("%f", DenomCoefficient)).
 		Str("--denom-exponent", fmt.Sprintf("%d", DenomExponent)).
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).

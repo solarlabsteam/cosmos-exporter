@@ -146,6 +146,7 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--node", NodeAddress).
 		Str("--tendermint-rpc", TendermintRPC).
 		Str("--use-tls", fmt.Sprintf("%t", UseTLS)).
+		Str("--limit", fmt.Sprintf("%d", Limit)).
 		Str("--log-level", LogLevel).
 		Msg("Started with following parameters")
 

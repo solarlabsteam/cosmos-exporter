@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"math"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"github.com/spf13/viper"
 	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -23,6 +26,7 @@ var (
 	Denom         string
 	ListenAddress string
 	NodeAddress   string
+	UseTLS        bool
 	TendermintRPC string
 	LogLevel      string
 	JsonOutput    bool
@@ -140,6 +144,8 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--denom-exponent", fmt.Sprintf("%d", DenomExponent)).
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).
+		Str("--tendermint-rpc", TendermintRPC).
+		Str("--use-tls", fmt.Sprintf("%t", UseTLS)).
 		Str("--log-level", LogLevel).
 		Msg("Started with following parameters")
 
@@ -149,9 +155,15 @@ func Execute(cmd *cobra.Command, args []string) {
 	config.SetBech32PrefixForConsensusNode(ConsensusNodePrefix, ConsensusNodePubkeyPrefix)
 	config.Seal()
 
+	var dialOption grpc.DialOption
+	if UseTLS {
+		dialOption = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12}))
+	} else {
+		dialOption = grpc.WithTransportCredentials(insecure.NewCredentials())
+	}
 	grpcConn, err := grpc.Dial(
 		NodeAddress,
-		grpc.WithInsecure(),
+		dialOption,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
@@ -287,6 +299,7 @@ func main() {
 	rootCmd.PersistentFlags().Uint64Var(&DenomExponent, "denom-exponent", 0, "Denom exponent")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
+	rootCmd.PersistentFlags().BoolVar(&UseTLS, "use-tls", false, "Use TLS")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
 	rootCmd.PersistentFlags().StringVar(&TendermintRPC, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")

@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn, ctx context.Context) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -98,7 +98,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 		bankClient := banktypes.NewQueryClient(grpcConn)
 		bankRes, err := bankClient.AllBalances(
-			context.Background(),
+			ctx,
 			&banktypes.QueryAllBalancesRequest{Address: myAddress.String()},
 		)
 		if err != nil {

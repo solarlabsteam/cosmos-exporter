@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn, ctx context.Context) {
 	requestStart := time.Now()
 	sublogger := log.With().
 		Str("request-id", uuid.New().String()).
@@ -175,7 +175,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 
 	stakingClient := stakingtypes.NewQueryClient(grpcConn)
 	validator, err := stakingClient.Validator(
-		context.Background(),
+		ctx,
 		&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
 	)
 	if err != nil {

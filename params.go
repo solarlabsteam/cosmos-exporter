@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn, ctx context.Context) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -168,7 +168,7 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		paramsResponse, err := stakingClient.Params(
-			context.Background(),
+			ctx,
 			&stakingtypes.QueryParamsRequest{},
 		)
 		if err != nil {

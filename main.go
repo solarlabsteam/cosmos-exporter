@@ -30,7 +30,7 @@ var (
 	UseTLS        bool
 	TendermintRPC string
 	LogLevel      string
-	JsonOutput    bool
+	JSONOutput    bool
 	Limit         uint64
 
 	Prefix                    string
@@ -127,7 +127,7 @@ func Execute(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Could not parse log level")
 	}
 
-	if JsonOutput {
+	if JSONOutput {
 		log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 	}
 
@@ -171,27 +171,28 @@ func Execute(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
 	}
 
-	setChainID()
-	setDenom(grpcConn)
+	ctx := context.Background()
+	setChainID(ctx)
+	setDenom(grpcConn, ctx)
 
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
-		WalletHandler(w, r, grpcConn)
+		WalletHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/validator", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorHandler(w, r, grpcConn)
+		ValidatorHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/validators", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorsHandler(w, r, grpcConn)
+		ValidatorsHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/params", func(w http.ResponseWriter, r *http.Request) {
-		ParamsHandler(w, r, grpcConn)
+		ParamsHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/general", func(w http.ResponseWriter, r *http.Request) {
-		GeneralHandler(w, r, grpcConn)
+		GeneralHandler(w, r, grpcConn, ctx)
 	})
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
@@ -205,13 +206,13 @@ func Execute(cmd *cobra.Command, args []string) {
 	}
 }
 
-func setChainID() {
+func setChainID(ctx context.Context) {
 	client, err := tmrpc.New(TendermintRPC, "/websocket")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not create Tendermint client")
 	}
 
-	status, err := client.Status(context.Background())
+	status, err := client.Status(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not query Tendermint status")
 	}
@@ -223,7 +224,7 @@ func setChainID() {
 	}
 }
 
-func setDenom(grpcConn *grpc.ClientConn) {
+func setDenom(grpcConn *grpc.ClientConn, ctx context.Context) {
 	// if --denom and (--denom-coefficient or --denom-exponent) are provided, use them
 	// instead of fetching them via gRPC. Can be useful for networks like osmosis.
 	if isUserProvidedAndHandled := checkAndHandleDenomInfoProvidedByUser(); isUserProvidedAndHandled {
@@ -232,7 +233,7 @@ func setDenom(grpcConn *grpc.ClientConn) {
 
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	denoms, err := bankClient.DenomsMetadata(
-		context.Background(),
+		ctx,
 		&banktypes.QueryDenomsMetadataRequest{},
 	)
 	if err != nil {
@@ -307,7 +308,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
 	rootCmd.PersistentFlags().StringVar(&TendermintRPC, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
-	rootCmd.PersistentFlags().BoolVar(&JsonOutput, "json", false, "Output logs as JSON")
+	rootCmd.PersistentFlags().BoolVar(&JSONOutput, "json", false, "Output logs as JSON")
 
 	// some networks, like Iris, have the different prefixes for address, validator and consensus node
 	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")

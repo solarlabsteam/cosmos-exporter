@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn, ctx context.Context) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -117,7 +117,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 
 		distributionClient := distributiontypes.NewQueryClient(grpcConn)
 		response, err := distributionClient.CommunityPool(
-			context.Background(),
+			ctx,
 			&distributiontypes.QueryCommunityPoolRequest{},
 		)
 		if err != nil {

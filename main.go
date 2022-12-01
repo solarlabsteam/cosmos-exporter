@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -194,7 +195,11 @@ func Execute(cmd *cobra.Command, args []string) {
 	})
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
-	err = http.ListenAndServe(ListenAddress, nil)
+	server := &http.Server{
+		Addr:              ListenAddress,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}

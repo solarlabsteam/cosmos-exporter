@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"main/pkg/cosmosdirectory"
 	"net/http"
 	"strconv"
 	"sync"
@@ -75,6 +76,14 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		[]string{"denom"},
 	)
 
+	generalTokenPrice := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name:        "cosmos_token_price",
+			Help:        "Cosmos token price",
+			ConstLabels: ConstLabels,
+		},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(generalBondedTokensGauge)
 	registry.MustRegister(generalNotBondedTokensGauge)
@@ -82,8 +91,22 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 	registry.MustRegister(generalSupplyTotalGauge)
 	registry.MustRegister(generalInflationGauge)
 	registry.MustRegister(generalAnnualProvisions)
+	registry.MustRegister(generalTokenPrice)
 
 	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		chain, err := cosmosdirectory.GetChainByChainID(ChainID)
+		if err != nil {
+			sublogger.Error().Err(err).Msg("Could not get chain informations")
+			return
+		}
+
+		price := chain.GetPriceUSD()
+		generalTokenPrice.Set(price)
+	}()
 
 	wg.Add(1)
 	go func() {

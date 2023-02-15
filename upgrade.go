@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -26,7 +27,7 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			Help:        "Upgrade plan info in height",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"info", "name", "time"},
+		[]string{"info", "name", "time", "height"},
 	)
 
 	registry := prometheus.NewRegistry()
@@ -57,15 +58,17 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 
 		if upgradeRes.Plan != nil {
 			upgradePlanGauge.With(prometheus.Labels{
-				"info": upgradeRes.Plan.Info,
-				"name": upgradeRes.Plan.Name,
-				"time": upgradeRes.Plan.Time.String(),
+				"info":   upgradeRes.Plan.Info,
+				"name":   upgradeRes.Plan.Name,
+				"time":   upgradeRes.Plan.Time.String(),
+				"height": strconv.FormatInt(upgradeRes.Plan.Height, 10),
 			}).Set(float64(1))
 		} else {
 			upgradePlanGauge.With(prometheus.Labels{
-				"info": "None",
-				"name": "None",
-				"time": "",
+				"info":   "None",
+				"name":   "None",
+				"time":   "",
+				"height": "",
 			}).Set(0)
 		}
 	}()

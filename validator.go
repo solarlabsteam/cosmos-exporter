@@ -263,7 +263,12 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		stakingRes, err := stakingClient.ValidatorDelegations(
 			context.Background(),
-			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
+			&stakingtypes.QueryValidatorDelegationsRequest{
+				ValidatorAddr: myAddress.String(),
+				Pagination: &querytypes.PageRequest{
+					Limit: Limit,
+				},
+			},
 		)
 		if err != nil {
 			sublogger.Error().

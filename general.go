@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	"main/pkg/cosmosdirectory"
+	"math/big"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"main/pkg/cosmosdirectory"
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -128,8 +130,17 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying staking pool")
 
-		generalBondedTokensGauge.Set(float64(response.Pool.BondedTokens.Int64()))
-		generalNotBondedTokensGauge.Set(float64(response.Pool.NotBondedTokens.Int64()))
+		bondedTokensBigInt := response.Pool.BondedTokens.BigInt()
+		bondedTokens, _ := new(big.Float).SetInt(bondedTokensBigInt).Float64()
+
+		notBondedTokensBigInt := response.Pool.NotBondedTokens.BigInt()
+		notBondedTokens, _ := new(big.Float).SetInt(notBondedTokensBigInt).Float64()
+
+		generalBondedTokensGauge.Set(bondedTokens)
+		generalNotBondedTokensGauge.Set(notBondedTokens)
+		//fmt.Println("response: ", response.Pool.BondedTokens)
+		//generalBondedTokensGauge.Set(float64(response.Pool.BondedTokens.Int64()))
+		//generalNotBondedTokensGauge.Set(float64(response.Pool.NotBondedTokens.Int64()))
 	}()
 
 	wg.Add(1)

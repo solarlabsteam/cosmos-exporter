@@ -158,7 +158,8 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			} else if validators[i].IsBonded() && !validators[j].IsBonded() {
 				return true
 			}
-			return validators[i].DelegatorShares.RoundInt64() > validators[j].DelegatorShares.RoundInt64()
+
+			return validators[i].DelegatorShares.BigInt().Cmp(validators[j].DelegatorShares.BigInt()) > 0
 		})
 	}()
 

@@ -14,10 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) WalletHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -96,7 +95,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Started querying balance")
 		queryStart := time.Now()
 
-		bankClient := banktypes.NewQueryClient(grpcConn)
+		bankClient := banktypes.NewQueryClient(s.grpcConn)
 		bankRes, err := bankClient.AllBalances(
 			context.Background(),
 			&banktypes.QueryAllBalancesRequest{Address: myAddress.String()},
@@ -138,7 +137,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Started querying delegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.DelegatorDelegations(
 			context.Background(),
 			&stakingtypes.QueryDelegatorDelegationsRequest{DelegatorAddr: myAddress.String()},
@@ -181,7 +180,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Started querying unbonding delegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.DelegatorUnbondingDelegations(
 			context.Background(),
 			&stakingtypes.QueryDelegatorUnbondingDelegationsRequest{DelegatorAddr: myAddress.String()},
@@ -229,7 +228,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Started querying redelegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.Redelegations(
 			context.Background(),
 			&stakingtypes.QueryRedelegationsRequest{DelegatorAddr: myAddress.String()},
@@ -279,7 +278,7 @@ func WalletHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 			Msg("Started querying rewards")
 		queryStart := time.Now()
 
-		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionClient := distributiontypes.NewQueryClient(s.grpcConn)
 		distributionRes, err := distributionClient.DelegationTotalRewards(
 			context.Background(),
 			&distributiontypes.QueryDelegationTotalRewardsRequest{DelegatorAddress: myAddress.String()},

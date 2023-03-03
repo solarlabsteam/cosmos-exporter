@@ -14,10 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) ParamsHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -166,7 +165,7 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		sublogger.Debug().Msg("Started querying global staking params")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		paramsResponse, err := stakingClient.Params(
 			context.Background(),
 			&stakingtypes.QueryParamsRequest{},
@@ -192,7 +191,7 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		sublogger.Debug().Msg("Started querying global mint params")
 		queryStart := time.Now()
 
-		mintClient := minttypes.NewQueryClient(grpcConn)
+		mintClient := minttypes.NewQueryClient(s.grpcConn)
 		paramsResponse, err := mintClient.Params(
 			context.Background(),
 			&minttypes.QueryParamsRequest{},
@@ -250,7 +249,7 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		sublogger.Debug().Msg("Started querying global slashing params")
 		queryStart := time.Now()
 
-		slashingClient := slashingtypes.NewQueryClient(grpcConn)
+		slashingClient := slashingtypes.NewQueryClient(s.grpcConn)
 		paramsResponse, err := slashingClient.Params(
 			context.Background(),
 			&slashingtypes.QueryParamsRequest{},
@@ -300,7 +299,7 @@ func ParamsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Client
 		sublogger.Debug().Msg("Started querying global distribution params")
 		queryStart := time.Now()
 
-		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionClient := distributiontypes.NewQueryClient(s.grpcConn)
 		paramsResponse, err := distributionClient.Params(
 			context.Background(),
 			&distributiontypes.QueryParamsRequest{},

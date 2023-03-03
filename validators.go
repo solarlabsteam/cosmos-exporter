@@ -15,10 +15,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
 	encCfg := simapp.MakeTestEncodingConfig()
 	interfaceRegistry := encCfg.InterfaceRegistry
 
@@ -132,7 +131,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		sublogger.Debug().Msg("Started querying validators")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		validatorsResponse, err := stakingClient.Validators(
 			context.Background(),
 			&stakingtypes.QueryValidatorsRequest{
@@ -169,7 +168,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		sublogger.Debug().Msg("Started querying validators signing infos")
 		queryStart := time.Now()
 
-		slashingClient := slashingtypes.NewQueryClient(grpcConn)
+		slashingClient := slashingtypes.NewQueryClient(s.grpcConn)
 		signingInfosResponse, err := slashingClient.SigningInfos(
 			context.Background(),
 			&slashingtypes.QuerySigningInfosRequest{
@@ -197,7 +196,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 		sublogger.Debug().Msg("Started querying staking params")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		paramsResponse, err := stakingClient.Params(
 			context.Background(),
 			&stakingtypes.QueryParamsRequest{},

@@ -17,10 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) ValidatorHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 	sublogger := log.With().
 		Str("request-id", uuid.New().String()).
@@ -173,7 +172,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		Msg("Started querying validator")
 	validatorQueryStart := time.Now()
 
-	stakingClient := stakingtypes.NewQueryClient(grpcConn)
+	stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 	validator, err := stakingClient.Validator(
 		context.Background(),
 		&stakingtypes.QueryValidatorRequest{ValidatorAddr: myAddress.String()},
@@ -260,7 +259,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator delegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.ValidatorDelegations(
 			context.Background(),
 			&stakingtypes.QueryValidatorDelegationsRequest{ValidatorAddr: myAddress.String()},
@@ -305,7 +304,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator commission")
 		queryStart := time.Now()
 
-		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionClient := distributiontypes.NewQueryClient(s.grpcConn)
 		distributionRes, err := distributionClient.ValidatorCommission(
 			context.Background(),
 			&distributiontypes.QueryValidatorCommissionRequest{ValidatorAddress: myAddress.String()},
@@ -350,7 +349,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator rewards")
 		queryStart := time.Now()
 
-		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionClient := distributiontypes.NewQueryClient(s.grpcConn)
 		distributionRes, err := distributionClient.ValidatorOutstandingRewards(
 			context.Background(),
 			&distributiontypes.QueryValidatorOutstandingRewardsRequest{ValidatorAddress: myAddress.String()},
@@ -394,7 +393,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator unbonding delegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.ValidatorUnbondingDelegations(
 			context.Background(),
 			&stakingtypes.QueryValidatorUnbondingDelegationsRequest{ValidatorAddr: myAddress.String()},
@@ -444,7 +443,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator redelegations")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.Redelegations(
 			context.Background(),
 			&stakingtypes.QueryRedelegationsRequest{SrcValidatorAddr: myAddress.String()},
@@ -514,7 +513,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 				Msg("Could not get validator pubkey")
 		}
 
-		slashingClient := slashingtypes.NewQueryClient(grpcConn)
+		slashingClient := slashingtypes.NewQueryClient(s.grpcConn)
 		slashingRes, err := slashingClient.SigningInfo(
 			context.Background(),
 			&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},
@@ -552,7 +551,7 @@ func ValidatorHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 			Msg("Started querying validator other validators")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		stakingRes, err := stakingClient.Validators(
 			context.Background(),
 			&stakingtypes.QueryValidatorsRequest{

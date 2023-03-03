@@ -42,6 +42,11 @@ var (
 	DenomExponent    uint64
 )
 
+type service struct {
+	grpcConn *grpc.ClientConn
+	tmRPC    *tmrpc.HTTP
+}
+
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
 
 var rootCmd = &cobra.Command{
@@ -149,36 +154,32 @@ func Execute(cmd *cobra.Command, args []string) {
 	config.SetBech32PrefixForConsensusNode(ConsensusNodePrefix, ConsensusNodePubkeyPrefix)
 	config.Seal()
 
-	grpcConn, err := grpc.Dial(
+	s := &service{}
+
+	// Setup gRPC connection
+	s.grpcConn, err = grpc.Dial(
 		NodeAddress,
 		grpc.WithInsecure(),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
 	}
+	defer s.grpcConn.Close()
 
-	setChainID()
-	setDenom(grpcConn)
+	// Setup Tendermint RPC connection
+	s.tmRPC, err = tmrpc.New(TendermintRPC, "/websocket")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not create Tendermint client")
+	}
 
-	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
-		WalletHandler(w, r, grpcConn)
-	})
+	s.setChainID()
+	s.setDenom()
 
-	http.HandleFunc("/metrics/validator", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/validators", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorsHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/params", func(w http.ResponseWriter, r *http.Request) {
-		ParamsHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/general", func(w http.ResponseWriter, r *http.Request) {
-		GeneralHandler(w, r, grpcConn)
-	})
+	http.HandleFunc("/metrics/wallet", s.WalletHandler)
+	http.HandleFunc("/metrics/validator", s.ValidatorHandler)
+	http.HandleFunc("/metrics/validators", s.ValidatorsHandler)
+	http.HandleFunc("/metrics/params", s.ParamsHandler)
+	http.HandleFunc("/metrics/general", s.GeneralHandler)
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)
@@ -187,13 +188,8 @@ func Execute(cmd *cobra.Command, args []string) {
 	}
 }
 
-func setChainID() {
-	client, err := tmrpc.New(TendermintRPC, "/websocket")
-	if err != nil {
-		log.Fatal().Err(err).Msg("Could not create Tendermint client")
-	}
-
-	status, err := client.Status(context.Background())
+func (s *service) setChainID() {
+	status, err := s.tmRPC.Status(context.Background())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not query Tendermint status")
 	}
@@ -205,14 +201,14 @@ func setChainID() {
 	}
 }
 
-func setDenom(grpcConn *grpc.ClientConn) {
+func (s *service) setDenom() {
 	// if --denom and (--denom-coefficient or --denom-exponent) are provided, use them
 	// instead of fetching them via gRPC. Can be useful for networks like osmosis.
 	if isUserProvidedAndHandled := checkAndHandleDenomInfoProvidedByUser(); isUserProvidedAndHandled {
 		return
 	}
 
-	bankClient := banktypes.NewQueryClient(grpcConn)
+	bankClient := banktypes.NewQueryClient(s.grpcConn)
 	denoms, err := bankClient.DenomsMetadata(
 		context.Background(),
 		&banktypes.QueryDenomsMetadataRequest{},

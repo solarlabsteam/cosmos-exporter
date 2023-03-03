@@ -17,10 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -78,6 +77,14 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		[]string{"denom"},
 	)
 
+	generalLatestBlockHeight := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name:        "cosmos_latest_block_height",
+			Help:        "Latest block height",
+			ConstLabels: ConstLabels,
+		},
+	)
+
 	generalTokenPrice := prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name:        "cosmos_token_price",
@@ -93,6 +100,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 	registry.MustRegister(generalSupplyTotalGauge)
 	registry.MustRegister(generalInflationGauge)
 	registry.MustRegister(generalAnnualProvisions)
+	registry.MustRegister(generalLatestBlockHeight)
 	registry.MustRegister(generalTokenPrice)
 
 	var wg sync.WaitGroup
@@ -113,10 +121,30 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		sublogger.Debug().Msg("Started querying base pool")
+
+		queryStart := time.Now()
+
+		status, err := s.tmRPC.Status(context.Background())
+		if err != nil {
+			sublogger.Error().Err(err).Msg("Could not status")
+			return
+		}
+
+		sublogger.Debug().
+			Float64("request-time", time.Since(queryStart).Seconds()).
+			Msg("Finished querying rpc status")
+
+		generalLatestBlockHeight.Set(float64(status.SyncInfo.LatestBlockHeight))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		sublogger.Debug().Msg("Started querying staking pool")
 		queryStart := time.Now()
 
-		stakingClient := stakingtypes.NewQueryClient(grpcConn)
+		stakingClient := stakingtypes.NewQueryClient(s.grpcConn)
 		response, err := stakingClient.Pool(
 			context.Background(),
 			&stakingtypes.QueryPoolRequest{},
@@ -149,7 +177,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		sublogger.Debug().Msg("Started querying distribution community pool")
 		queryStart := time.Now()
 
-		distributionClient := distributiontypes.NewQueryClient(grpcConn)
+		distributionClient := distributiontypes.NewQueryClient(s.grpcConn)
 		response, err := distributionClient.CommunityPool(
 			context.Background(),
 			&distributiontypes.QueryCommunityPoolRequest{},
@@ -182,7 +210,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		sublogger.Debug().Msg("Started querying bank total supply")
 		queryStart := time.Now()
 
-		bankClient := banktypes.NewQueryClient(grpcConn)
+		bankClient := banktypes.NewQueryClient(s.grpcConn)
 		response, err := bankClient.TotalSupply(
 			context.Background(),
 			&banktypes.QueryTotalSupplyRequest{},
@@ -215,7 +243,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		sublogger.Debug().Msg("Started querying inflation")
 		queryStart := time.Now()
 
-		mintClient := minttypes.NewQueryClient(grpcConn)
+		mintClient := minttypes.NewQueryClient(s.grpcConn)
 		response, err := mintClient.Inflation(
 			context.Background(),
 			&minttypes.QueryInflationRequest{},
@@ -244,7 +272,7 @@ func GeneralHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		sublogger.Debug().Msg("Started querying annual provisions")
 		queryStart := time.Now()
 
-		mintClient := minttypes.NewQueryClient(grpcConn)
+		mintClient := minttypes.NewQueryClient(s.grpcConn)
 		response, err := mintClient.AnnualProvisions(
 			context.Background(),
 			&minttypes.QueryAnnualProvisionsRequest{},

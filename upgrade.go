@@ -27,7 +27,7 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			Help:        "Upgrade plan info in height",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"info", "name", "time", "height"},
+		[]string{"info", "name", "time", "height", "estimated_time"},
 	)
 
 	registry := prometheus.NewRegistry()
@@ -56,21 +56,53 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying upgrade plan")
 
-		if upgradeRes.Plan != nil {
+		if upgradeRes.Plan == nil {
 			upgradePlanGauge.With(prometheus.Labels{
-				"info":   upgradeRes.Plan.Info,
-				"name":   upgradeRes.Plan.Name,
-				"time":   upgradeRes.Plan.Time.String(),
-				"height": strconv.FormatInt(upgradeRes.Plan.Height, 10),
-			}).Set(float64(1))
-		} else {
-			upgradePlanGauge.With(prometheus.Labels{
-				"info":   "None",
-				"name":   "None",
-				"time":   "",
-				"height": "",
+				"info":           "None",
+				"name":           "None",
+				"time":           "",
+				"height":         "",
+				"estimated_time": "",
 			}).Set(0)
+			return
 		}
+
+		cs, err := NewChainStatus()
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get sync info")
+			return
+		}
+
+		upgradeHeight := upgradeRes.Plan.Height
+		remainingHeight := upgradeHeight - cs.LatestBlockHeight()
+
+		if remainingHeight <= 0 {
+			upgradePlanGauge.With(prometheus.Labels{
+				"info":           "None",
+				"name":           "None",
+				"time":           "",
+				"height":         "",
+				"estimated_time": "",
+			}).Set(0)
+			return
+		}
+
+		estimatedTime, err := cs.EstimateBlockTime(remainingHeight)
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get estimated time")
+		}
+
+		upgradePlanGauge.With(prometheus.Labels{
+			"info":           upgradeRes.Plan.Info,
+			"name":           upgradeRes.Plan.Name,
+			"time":           upgradeRes.Plan.Time.String(),
+			"height":         strconv.FormatInt(upgradeHeight, 10),
+			"estimated_time": estimatedTime.Local().Format(time.RFC1123),
+		}).Set(float64(remainingHeight))
 	}()
 
 	wg.Wait()

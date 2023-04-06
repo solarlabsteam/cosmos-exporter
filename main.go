@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"math"
 	"net/http"
 	"os"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -15,6 +17,8 @@ import (
 	"github.com/spf13/viper"
 	tmrpc "github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -23,9 +27,10 @@ var (
 	Denom         string
 	ListenAddress string
 	NodeAddress   string
+	UseTLS        bool
 	TendermintRPC string
 	LogLevel      string
-	JsonOutput    bool
+	JSONOutput    bool
 	Limit         uint64
 
 	Prefix                    string
@@ -122,7 +127,7 @@ func Execute(cmd *cobra.Command, args []string) {
 		log.Fatal().Err(err).Msg("Could not parse log level")
 	}
 
-	if JsonOutput {
+	if JSONOutput {
 		log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 	}
 
@@ -136,10 +141,13 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--bech-consensus-node-prefix", ConsensusNodePrefix).
 		Str("--bech-consensus-node-pubkey-prefix", ConsensusNodePubkeyPrefix).
 		Str("--denom", Denom).
-		Str("--denom-cofficient", fmt.Sprintf("%f", DenomCoefficient)).
+		Str("--denom-coefficient", fmt.Sprintf("%f", DenomCoefficient)).
 		Str("--denom-exponent", fmt.Sprintf("%d", DenomExponent)).
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).
+		Str("--tendermint-rpc", TendermintRPC).
+		Str("--use-tls", fmt.Sprintf("%t", UseTLS)).
+		Str("--limit", fmt.Sprintf("%d", Limit)).
 		Str("--log-level", LogLevel).
 		Msg("Started with following parameters")
 
@@ -149,51 +157,62 @@ func Execute(cmd *cobra.Command, args []string) {
 	config.SetBech32PrefixForConsensusNode(ConsensusNodePrefix, ConsensusNodePubkeyPrefix)
 	config.Seal()
 
+	var dialOption grpc.DialOption
+	if UseTLS {
+		dialOption = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12}))
+	} else {
+		dialOption = grpc.WithTransportCredentials(insecure.NewCredentials())
+	}
 	grpcConn, err := grpc.Dial(
 		NodeAddress,
-		grpc.WithInsecure(),
+		dialOption,
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
 	}
 
-	setChainID()
-	setDenom(grpcConn)
+	ctx := context.Background()
+	setChainID(ctx)
+	setDenom(grpcConn, ctx)
 
 	http.HandleFunc("/metrics/wallet", func(w http.ResponseWriter, r *http.Request) {
-		WalletHandler(w, r, grpcConn)
+		WalletHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/validator", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorHandler(w, r, grpcConn)
+		ValidatorHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/validators", func(w http.ResponseWriter, r *http.Request) {
-		ValidatorsHandler(w, r, grpcConn)
+		ValidatorsHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/params", func(w http.ResponseWriter, r *http.Request) {
-		ParamsHandler(w, r, grpcConn)
+		ParamsHandler(w, r, grpcConn, ctx)
 	})
 
 	http.HandleFunc("/metrics/general", func(w http.ResponseWriter, r *http.Request) {
-		GeneralHandler(w, r, grpcConn)
+		GeneralHandler(w, r, grpcConn, ctx)
 	})
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
-	err = http.ListenAndServe(ListenAddress, nil)
+	server := &http.Server{
+		Addr:              ListenAddress,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")
 	}
 }
 
-func setChainID() {
+func setChainID(ctx context.Context) {
 	client, err := tmrpc.New(TendermintRPC, "/websocket")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not create Tendermint client")
 	}
 
-	status, err := client.Status(context.Background())
+	status, err := client.Status(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not query Tendermint status")
 	}
@@ -205,7 +224,7 @@ func setChainID() {
 	}
 }
 
-func setDenom(grpcConn *grpc.ClientConn) {
+func setDenom(grpcConn *grpc.ClientConn, ctx context.Context) {
 	// if --denom and (--denom-coefficient or --denom-exponent) are provided, use them
 	// instead of fetching them via gRPC. Can be useful for networks like osmosis.
 	if isUserProvidedAndHandled := checkAndHandleDenomInfoProvidedByUser(); isUserProvidedAndHandled {
@@ -214,7 +233,7 @@ func setDenom(grpcConn *grpc.ClientConn) {
 
 	bankClient := banktypes.NewQueryClient(grpcConn)
 	denoms, err := bankClient.DenomsMetadata(
-		context.Background(),
+		ctx,
 		&banktypes.QueryDenomsMetadataRequest{},
 	)
 	if err != nil {
@@ -249,7 +268,6 @@ func setDenom(grpcConn *grpc.ClientConn) {
 }
 
 func checkAndHandleDenomInfoProvidedByUser() bool {
-
 	if Denom != "" {
 		if DenomCoefficient != 1 && DenomExponent != 0 {
 			log.Fatal().Msg("denom-coefficient and denom-exponent are both provided. Must provide only one")
@@ -277,7 +295,6 @@ func checkAndHandleDenomInfoProvidedByUser() bool {
 	}
 
 	return false
-
 }
 
 func main() {
@@ -287,10 +304,11 @@ func main() {
 	rootCmd.PersistentFlags().Uint64Var(&DenomExponent, "denom-exponent", 0, "Denom exponent")
 	rootCmd.PersistentFlags().StringVar(&ListenAddress, "listen-address", ":9300", "The address this exporter would listen on")
 	rootCmd.PersistentFlags().StringVar(&NodeAddress, "node", "localhost:9090", "RPC node address")
+	rootCmd.PersistentFlags().BoolVar(&UseTLS, "use-tls", false, "Use TLS")
 	rootCmd.PersistentFlags().StringVar(&LogLevel, "log-level", "info", "Logging level")
 	rootCmd.PersistentFlags().Uint64Var(&Limit, "limit", 1000, "Pagination limit for gRPC requests")
 	rootCmd.PersistentFlags().StringVar(&TendermintRPC, "tendermint-rpc", "http://localhost:26657", "Tendermint RPC address")
-	rootCmd.PersistentFlags().BoolVar(&JsonOutput, "json", false, "Output logs as JSON")
+	rootCmd.PersistentFlags().BoolVar(&JSONOutput, "json", false, "Output logs as JSON")
 
 	// some networks, like Iris, have the different prefixes for address, validator and consensus node
 	rootCmd.PersistentFlags().StringVar(&Prefix, "bech-prefix", "persistence", "Bech32 global prefix")

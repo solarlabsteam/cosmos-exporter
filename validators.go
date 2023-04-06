@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn, ctx context.Context) {
 	encCfg := simapp.MakeTestEncodingConfig()
 	interfaceRegistry := encCfg.InterfaceRegistry
 
@@ -134,7 +134,7 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 
 		stakingClient := stakingtypes.NewQueryClient(grpcConn)
 		validatorsResponse, err := stakingClient.Validators(
-			context.Background(),
+			ctx,
 			&stakingtypes.QueryValidatorsRequest{
 				Pagination: &querytypes.PageRequest{
 					Limit: Limit,

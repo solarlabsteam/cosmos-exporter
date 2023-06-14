@@ -12,6 +12,7 @@ import (
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/google/uuid"
@@ -93,6 +94,14 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	)
 
+	paramsGovVotingPeriodProposals := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name:        "cosmos_gov_voting_period_proposals",
+			Help:        "Voting period proposals",
+			ConstLabels: ConstLabels,
+		},
+	)
+
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(generalBondedTokensGauge)
 	registry.MustRegister(generalNotBondedTokensGauge)
@@ -102,6 +111,7 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 	registry.MustRegister(generalAnnualProvisions)
 	registry.MustRegister(generalLatestBlockHeight)
 	registry.MustRegister(generalTokenPrice)
+	registry.MustRegister(paramsGovVotingPeriodProposals)
 
 	var wg sync.WaitGroup
 
@@ -295,6 +305,24 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 				"denom": Denom,
 			}).Set(value / DenomCoefficient)
 		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sublogger.Debug().Msg("Started querying global gov params")
+		govClient := govtypes.NewQueryClient(s.grpcConn)
+		proposals, err := govClient.Proposals(context.Background(), &govtypes.QueryProposalsRequest{
+			ProposalStatus: govtypes.StatusVotingPeriod,
+		})
+		if err != nil {
+			sublogger.Error().
+				Err(err).
+				Msg("Could not get active proposals")
+		}
+
+		proposalsCount := len(proposals.GetProposals())
+		paramsGovVotingPeriodProposals.Set(float64(proposalsCount))
 	}()
 
 	wg.Wait()

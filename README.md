@@ -128,7 +128,7 @@ It queries the full node via gRPC and returns it in the format Prometheus can co
 
 ## How can I configure it?
 
-You can pass the artuments to the executable file to configure it. Here is the parameters list:
+You can pass the arguments to the executable file to configure it. Here is the parameters list:
 
 - `--bech-prefix` - the global prefix for addresses. Defaults to `persistence`
 - `--denom` - the currency, for example, `uatom` for Cosmos. Defaults to `uxprt`

@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/Team-Kujira/core v0.8.6
-	github.com/cosmos/cosmos-sdk v0.46.13
+	github.com/cosmos/cosmos-sdk v0.46.15
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rs/zerolog v1.29.1
@@ -12,7 +12,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
-	github.com/tendermint/tendermint v0.34.28
+	github.com/tendermint/tendermint v0.34.29
 	google.golang.org/grpc v1.58.0
 )
 

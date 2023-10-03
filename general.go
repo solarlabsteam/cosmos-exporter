@@ -12,8 +12,7 @@ import (
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,23 +59,26 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		[]string{"denom"},
 	)
+	/*
+		generalInflationGauge := prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_inflation",
+				Help:        "Total supply",
+				ConstLabels: ConstLabels,
+			},
+		)
+	*/
+	/*
+		generalAnnualProvisions := prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_annual_provisions",
+				Help:        "Annual provisions",
+				ConstLabels: ConstLabels,
+			},
+			[]string{"denom"},
+		)
 
-	generalInflationGauge := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_inflation",
-			Help:        "Total supply",
-			ConstLabels: ConstLabels,
-		},
-	)
-
-	generalAnnualProvisions := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_annual_provisions",
-			Help:        "Annual provisions",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"denom"},
-	)
+	*/
 
 	generalLatestBlockHeight := prometheus.NewGauge(
 		prometheus.GaugeOpts{
@@ -107,8 +109,8 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 	registry.MustRegister(generalNotBondedTokensGauge)
 	registry.MustRegister(generalCommunityPoolGauge)
 	registry.MustRegister(generalSupplyTotalGauge)
-	registry.MustRegister(generalInflationGauge)
-	registry.MustRegister(generalAnnualProvisions)
+	// registry.MustRegister(generalInflationGauge)
+	// registry.MustRegister(generalAnnualProvisions)
 	registry.MustRegister(generalLatestBlockHeight)
 	registry.MustRegister(generalTokenPrice)
 	registry.MustRegister(paramsGovVotingPeriodProposals)
@@ -246,67 +248,68 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+	/*
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sublogger.Debug().Msg("Started querying inflation")
+			queryStart := time.Now()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		sublogger.Debug().Msg("Started querying inflation")
-		queryStart := time.Now()
+			mintClient := minttypes.NewQueryClient(s.grpcConn)
+			response, err := mintClient.Inflation(
+				context.Background(),
+				&minttypes.QueryInflationRequest{},
+			)
+			if err != nil {
+				sublogger.Error().Err(err).Msg("Could not get inflation")
+				return
+			}
 
-		mintClient := minttypes.NewQueryClient(s.grpcConn)
-		response, err := mintClient.Inflation(
-			context.Background(),
-			&minttypes.QueryInflationRequest{},
-		)
-		if err != nil {
-			sublogger.Error().Err(err).Msg("Could not get inflation")
-			return
-		}
+			sublogger.Debug().
+				Float64("request-time", time.Since(queryStart).Seconds()).
+				Msg("Finished querying inflation")
 
-		sublogger.Debug().
-			Float64("request-time", time.Since(queryStart).Seconds()).
-			Msg("Finished querying inflation")
+			if value, err := strconv.ParseFloat(response.Inflation.String(), 64); err != nil {
+				sublogger.Error().
+					Err(err).
+					Msg("Could not get inflation")
+			} else {
+				generalInflationGauge.Set(value)
+			}
+		}()
+	*/
+	/*
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sublogger.Debug().Msg("Started querying annual provisions")
+			queryStart := time.Now()
 
-		if value, err := strconv.ParseFloat(response.Inflation.String(), 64); err != nil {
-			sublogger.Error().
-				Err(err).
-				Msg("Could not get inflation")
-		} else {
-			generalInflationGauge.Set(value)
-		}
-	}()
+			mintClient := minttypes.NewQueryClient(s.grpcConn)
+			response, err := mintClient.AnnualProvisions(
+				context.Background(),
+				&minttypes.QueryAnnualProvisionsRequest{},
+			)
+			if err != nil {
+				sublogger.Error().Err(err).Msg("Could not get annual provisions")
+				return
+			}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		sublogger.Debug().Msg("Started querying annual provisions")
-		queryStart := time.Now()
+			sublogger.Debug().
+				Float64("request-time", time.Since(queryStart).Seconds()).
+				Msg("Finished querying annual provisions")
 
-		mintClient := minttypes.NewQueryClient(s.grpcConn)
-		response, err := mintClient.AnnualProvisions(
-			context.Background(),
-			&minttypes.QueryAnnualProvisionsRequest{},
-		)
-		if err != nil {
-			sublogger.Error().Err(err).Msg("Could not get annual provisions")
-			return
-		}
-
-		sublogger.Debug().
-			Float64("request-time", time.Since(queryStart).Seconds()).
-			Msg("Finished querying annual provisions")
-
-		if value, err := strconv.ParseFloat(response.AnnualProvisions.String(), 64); err != nil {
-			sublogger.Error().
-				Err(err).
-				Msg("Could not get annual provisions")
-		} else {
-			generalAnnualProvisions.With(prometheus.Labels{
-				"denom": Denom,
-			}).Set(value / DenomCoefficient)
-		}
-	}()
-
+			if value, err := strconv.ParseFloat(response.AnnualProvisions.String(), 64); err != nil {
+				sublogger.Error().
+					Err(err).
+					Msg("Could not get annual provisions")
+			} else {
+				generalAnnualProvisions.With(prometheus.Labels{
+					"denom": Denom,
+				}).Set(value / DenomCoefficient)
+			}
+		}()
+	*/
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

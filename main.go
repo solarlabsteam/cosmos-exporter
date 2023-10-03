@@ -179,9 +179,8 @@ func Execute(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/metrics/validators", s.ValidatorsHandler)
 	http.HandleFunc("/metrics/params", s.ParamsHandler)
 	http.HandleFunc("/metrics/general", s.GeneralHandler)
-	http.HandleFunc("/metrics/kujira", func(w http.ResponseWriter, r *http.Request) {
-		KujiraMetricHandler(w, r, s.grpcConn)
-	})
+	http.HandleFunc("/metrics/kujira", s.KujiraMetricHandler)
+
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)
 	if err != nil {

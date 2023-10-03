@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
 /*
@@ -20,7 +19,7 @@ type voteMissCounter struct {
 }
 */
 
-func KujiraMetricHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) KujiraMetricHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -49,7 +48,7 @@ func KujiraMetricHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.
 		sublogger.Debug().Msg("Started querying oracle feeder metrics")
 		queryStart := time.Now()
 
-		oracleClient := oracletypes.NewQueryClient(grpcConn)
+		oracleClient := oracletypes.NewQueryClient(s.grpcConn)
 		response, err := oracleClient.MissCounter(context.Background(), &oracletypes.QueryMissCounterRequest{ValidatorAddr: address})
 
 		if err != nil {

@@ -296,6 +296,27 @@ func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
 			}).Set(value / DenomCoefficient)
 		}
 
+		validatorsRankGauge.With(prometheus.Labels{
+			"address": validator.OperatorAddress,
+			"moniker": validator.Description.Moniker,
+		}).Set(float64(index + 1))
+
+		if validatorSetLength != 0 {
+			// golang doesn't have a ternary operator, so we have to stick with this ugly solution
+			var active float64
+
+			if index+1 <= int(validatorSetLength) {
+				active = 1
+			} else {
+				active = 0
+			}
+
+			validatorsIsActiveGauge.With(prometheus.Labels{
+				"address": validator.OperatorAddress,
+				"moniker": validator.Description.Moniker,
+			}).Set(active)
+		}
+
 		err = validator.UnpackInterfaces(interfaceRegistry) // Unpack interfaces, to populate the Anys' cached values
 		if err != nil {
 			sublogger.Error().
@@ -324,13 +345,22 @@ func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !found {
-			sublogger.Debug().
-				Str("address", validator.OperatorAddress).
-				Msg("Could not get signing info for validator")
-			continue
+			slashingClient := slashingtypes.NewQueryClient(grpcConn)
+			slashingRes, err := slashingClient.SigningInfo(
+				context.Background(),
+				&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},
+			)
+			if err != nil {
+				sublogger.Debug().
+					Str("address", validator.OperatorAddress).
+					Msg("Could not get signing info for validator")
+				continue
+			}
+			found = true
+			signingInfo = slashingRes.ValSigningInfo
 		}
 
-		if validator.Status == stakingtypes.Bonded {
+		if found && (validator.Status == stakingtypes.Bonded) {
 			validatorsMissedBlocksGauge.With(prometheus.Labels{
 				"address": validator.OperatorAddress,
 				"moniker": validator.Description.Moniker,
@@ -339,27 +369,6 @@ func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
 			sublogger.Trace().
 				Str("address", validator.OperatorAddress).
 				Msg("Validator is not active, not returning missed blocks amount.")
-		}
-
-		validatorsRankGauge.With(prometheus.Labels{
-			"address": validator.OperatorAddress,
-			"moniker": validator.Description.Moniker,
-		}).Set(float64(index + 1))
-
-		if validatorSetLength != 0 {
-			// golang doesn't have a ternary operator, so we have to stick with this ugly solution
-			var active float64
-
-			if index+1 <= int(validatorSetLength) {
-				active = 1
-			} else {
-				active = 0
-			}
-
-			validatorsIsActiveGauge.With(prometheus.Labels{
-				"address": validator.OperatorAddress,
-				"moniker": validator.Description.Moniker,
-			}).Set(active)
 		}
 	}
 

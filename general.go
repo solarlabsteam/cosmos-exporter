@@ -122,7 +122,7 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		defer wg.Done()
 		chain, err := cosmosdirectory.GetChainByChainID(ChainID)
 		if err != nil {
-			sublogger.Error().Err(err).Msg("Could not get chain informations")
+			sublogger.Error().Err(err).Msg("Could not get chain information")
 			return
 		}
 

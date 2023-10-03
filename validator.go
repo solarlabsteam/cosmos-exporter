@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"net/http"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	querytypes "github.com/cosmos/cosmos-sdk/types/query"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -498,9 +498,7 @@ func (s *service) ValidatorHandler(w http.ResponseWriter, r *http.Request) {
 			Str("address", address).
 			Msg("Started querying validator signing info")
 		queryStart := time.Now()
-
-		encCfg := simapp.MakeTestEncodingConfig()
-		interfaceRegistry := encCfg.InterfaceRegistry
+		interfaceRegistry := codectypes.NewInterfaceRegistry()
 
 		err := validator.Validator.UnpackInterfaces(interfaceRegistry) // Unpack interfaces, to populate the Anys' cached values
 		if err != nil {

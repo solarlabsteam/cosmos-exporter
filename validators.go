@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	querytypes "github.com/cosmos/cosmos-sdk/types/query"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -18,8 +18,7 @@ import (
 )
 
 func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
-	encCfg := simapp.MakeTestEncodingConfig()
-	interfaceRegistry := encCfg.InterfaceRegistry
+	interfaceRegistry := codectypes.NewInterfaceRegistry()
 
 	requestStart := time.Now()
 

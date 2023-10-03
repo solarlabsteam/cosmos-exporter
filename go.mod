@@ -3,7 +3,7 @@ module main
 go 1.20
 
 require (
-	github.com/Team-Kujira/core v0.8.6
+	github.com/Team-Kujira/core v0.8.7
 	github.com/cosmos/cosmos-sdk v0.46.15
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.14.0

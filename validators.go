@@ -345,7 +345,7 @@ func (s *service) ValidatorsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !found {
-			slashingClient := slashingtypes.NewQueryClient(grpcConn)
+			slashingClient := slashingtypes.NewQueryClient(s.grpcConn)
 			slashingRes, err := slashingClient.SigningInfo(
 				context.Background(),
 				&slashingtypes.QuerySigningInfoRequest{ConsAddress: pubKey.String()},

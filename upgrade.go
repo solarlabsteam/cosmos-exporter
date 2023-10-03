@@ -11,10 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -27,7 +26,7 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			Help:        "Upgrade plan info in height",
 			ConstLabels: ConstLabels,
 		},
-		[]string{"info", "name", "time", "height", "estimated_time"},
+		[]string{"info", "name", "height", "estimated_time"},
 	)
 
 	registry := prometheus.NewRegistry()
@@ -40,7 +39,7 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		defer wg.Done()
 		queryStart := time.Now()
 
-		upgradeClient := upgradetypes.NewQueryClient(grpcConn)
+		upgradeClient := upgradetypes.NewQueryClient(s.grpcConn)
 		upgradeRes, err := upgradeClient.CurrentPlan(
 			context.Background(),
 			&upgradetypes.QueryCurrentPlanRequest{},
@@ -60,7 +59,6 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			upgradePlanGauge.With(prometheus.Labels{
 				"info":           "None",
 				"name":           "None",
-				"time":           "",
 				"height":         "",
 				"estimated_time": "",
 			}).Set(0)
@@ -82,7 +80,6 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 			upgradePlanGauge.With(prometheus.Labels{
 				"info":           "None",
 				"name":           "None",
-				"time":           "",
 				"height":         "",
 				"estimated_time": "",
 			}).Set(0)
@@ -99,7 +96,6 @@ func UpgradeHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Clien
 		upgradePlanGauge.With(prometheus.Labels{
 			"info":           upgradeRes.Plan.Info,
 			"name":           upgradeRes.Plan.Name,
-			"time":           upgradeRes.Plan.Time.String(),
 			"height":         strconv.FormatInt(upgradeHeight, 10),
 			"estimated_time": estimatedTime.Local().Format(time.RFC1123),
 		}).Set(float64(remainingHeight))

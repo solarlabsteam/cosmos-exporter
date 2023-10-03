@@ -3,20 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 )
 
-func ProposalsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.ClientConn) {
+func (s *service) ProposalsHandler(w http.ResponseWriter, r *http.Request) {
 	requestStart := time.Now()
 
 	sublogger := log.With().
@@ -45,7 +44,7 @@ func ProposalsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 		sublogger.Debug().Msg("Started querying proposals")
 		queryStart := time.Now()
 
-		govClient := govtypes.NewQueryClient(grpcConn)
+		govClient := govtypes.NewQueryClient(s.grpcConn)
 		proposalsResponse, err := govClient.Proposals(
 			context.Background(),
 			&govtypes.QueryProposalsRequest{},
@@ -71,7 +70,7 @@ func ProposalsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cli
 	cdc := codec.NewProtoCodec(cdcRegistry)
 	for _, proposal := range proposals {
 		var content govtypes.TextProposal
-		err := cdc.UnmarshalBinaryBare(proposal.Content.Value, &content)
+		err := cdc.Unmarshal(proposal.Content.Value, &content)
 
 		if err != nil {
 			sublogger.Error().

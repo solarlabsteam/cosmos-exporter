@@ -180,18 +180,9 @@ func Execute(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/metrics/params", s.ParamsHandler)
 	http.HandleFunc("/metrics/general", s.GeneralHandler)
 	http.HandleFunc("/metrics/kujira", s.KujiraMetricHandler)
-
-	http.HandleFunc("/metrics/proposals", func(w http.ResponseWriter, r *http.Request) {
-		ProposalsHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/delegator", func(w http.ResponseWriter, r *http.Request) {
-		DelegatorHandler(w, r, grpcConn)
-	})
-
-	http.HandleFunc("/metrics/upgrade", func(w http.ResponseWriter, r *http.Request) {
-		UpgradeHandler(w, r, grpcConn)
-	})
+	http.HandleFunc("/metrics/delegator", s.DelegatorHandler)
+	http.HandleFunc("/metrics/proposals", s.ProposalsHandler)
+	http.HandleFunc("/metrics/upgrade", s.UpgradeHandler)
 
 	log.Info().Str("address", ListenAddress).Msg("Listening")
 	err = http.ListenAndServe(ListenAddress, nil)

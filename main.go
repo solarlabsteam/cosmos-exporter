@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -40,11 +41,26 @@ var (
 	ConstLabels      map[string]string
 	DenomCoefficient float64
 	DenomExponent    uint64
+
+	// SingleReq bundle up multiple requests into a single /metrics
+	SingleReq  bool
+	Wallets    []string
+	Validators []string
+	Oracle     bool
+	Upgrades   bool
+	Proposals  bool
+	Params     bool
 )
 
 type service struct {
-	grpcConn *grpc.ClientConn
-	tmRPC    *tmrpc.HTTP
+	grpcConn   *grpc.ClientConn
+	tmRPC      *tmrpc.HTTP
+	Wallets    []string
+	Validators []string
+	Oracle     bool
+	Upgrades   bool
+	Proposals  bool
+	Params     bool
 }
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout}).With().Timestamp().Logger()
@@ -77,7 +93,45 @@ var rootCmd = &cobra.Command{
 		})
 
 		setBechPrefixes(cmd)
+		/*
+			SingleReq, err := cmd.Flags().GetBool("single")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
 
+			Oracle, err := cmd.Flags().GetBool("oracle")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+			Upgrades, err := cmd.Flags().GetBool("upgrades")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+			Proposals, err := cmd.Flags().GetBool("proposals")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+
+			Params, err := cmd.Flags().GetBool("params")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+			Wallets, err := cmd.Flags().GetStringArray("wallets")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+			Validators, err := cmd.Flags().GetStringArray("validators")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Could not set flag")
+				return err
+			}
+		*/
 		return nil
 	},
 	Run: Execute,
@@ -121,7 +175,7 @@ func setBechPrefixes(cmd *cobra.Command) {
 	}
 }
 
-func Execute(cmd *cobra.Command, args []string) {
+func Execute(_ *cobra.Command, _ []string) {
 	logLevel, err := zerolog.ParseLevel(LogLevel)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not parse log level")
@@ -146,6 +200,13 @@ func Execute(cmd *cobra.Command, args []string) {
 		Str("--listen-address", ListenAddress).
 		Str("--node", NodeAddress).
 		Str("--log-level", LogLevel).
+		Str("--single", fmt.Sprintf("%t", SingleReq)).
+		Str("--wallets", strings.Join(Wallets[:], ",")).
+		Str("--validators", strings.Join(Validators[:], ",")).
+		Str("--oracle", fmt.Sprintf("%t", Oracle)).
+		Str("--proposals", fmt.Sprintf("%t", Proposals)).
+		Str("--params", fmt.Sprintf("%t", Params)).
+		Str("--upgrades", fmt.Sprintf("%t", Upgrades)).
 		Msg("Started with following parameters")
 
 	config := sdk.GetConfig()
@@ -164,7 +225,12 @@ func Execute(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not connect to gRPC node")
 	}
-	defer s.grpcConn.Close()
+	defer func(grpcConn *grpc.ClientConn) {
+		err := grpcConn.Close()
+		if err != nil {
+			log.Fatal().Err(err).Msg("Could not close gRPC client")
+		}
+	}(s.grpcConn)
 
 	// Setup Tendermint RPC connection
 	s.tmRPC, err = tmrpc.New(TendermintRPC, "/websocket")
@@ -173,7 +239,18 @@ func Execute(cmd *cobra.Command, args []string) {
 	}
 	s.setChainID()
 	s.setDenom()
+	s.Params = Params
+	s.Wallets = Wallets
+	s.Validators = Validators
+	s.Proposals = Proposals
+	s.Oracle = Oracle
+	s.Params = Params
+	s.Upgrades = Upgrades
 
+	if SingleReq {
+		log.Info().Msg("Starting Single Mode")
+		http.HandleFunc("/metrics", s.SingleHandler)
+	}
 	http.HandleFunc("/metrics/wallet", s.WalletHandler)
 	http.HandleFunc("/metrics/validator", s.ValidatorHandler)
 	http.HandleFunc("/metrics/validators", s.ValidatorsHandler)
@@ -299,6 +376,13 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&ValidatorPubkeyPrefix, "bech-validator-pubkey-prefix", "", "Bech32 pubkey validator prefix")
 	rootCmd.PersistentFlags().StringVar(&ConsensusNodePrefix, "bech-consensus-node-prefix", "", "Bech32 consensus node prefix")
 	rootCmd.PersistentFlags().StringVar(&ConsensusNodePubkeyPrefix, "bech-consensus-node-pubkey-prefix", "", "Bech32 pubkey consensus node prefix")
+	rootCmd.PersistentFlags().BoolVar(&SingleReq, "single", false, "serve info in a single call to /metrics")
+	rootCmd.PersistentFlags().BoolVar(&Oracle, "oracle", false, "serve oracle info in the single call to /metrics")
+	rootCmd.PersistentFlags().BoolVar(&Upgrades, "upgrades", false, "serve upgrade info in the single call to /metrics")
+	rootCmd.PersistentFlags().BoolVar(&Proposals, "proposals", false, "serve active proposal info in the single call to /metrics")
+	rootCmd.PersistentFlags().BoolVar(&Params, "params", false, "serve chain params info in the single call to /metrics")
+	rootCmd.PersistentFlags().StringSliceVar(&Wallets, "wallets", nil, "serve info about passed wallets")
+	rootCmd.PersistentFlags().StringSliceVar(&Validators, "validators", nil, "serve info about passed validators")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal().Err(err).Msg("Could not start application")

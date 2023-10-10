@@ -2,63 +2,100 @@ package main
 
 import (
 	"context"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/rs/zerolog"
+	"main/pkg/cosmosdirectory"
 	"math/big"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
-	"main/pkg/cosmosdirectory"
-
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
-	requestStart := time.Now()
+type GeneralMetrics struct {
+	bondedTokensGauge        prometheus.Gauge
+	notBondedTokensGauge     prometheus.Gauge
+	communityPoolGauge       *prometheus.GaugeVec
+	supplyTotalGauge         *prometheus.GaugeVec
+	latestBlockHeight        prometheus.Gauge
+	tokenPrice               prometheus.Gauge
+	govVotingPeriodProposals prometheus.Gauge
+}
 
-	sublogger := log.With().
-		Str("request-id", uuid.New().String()).
-		Logger()
+func NewGeneralMetrics(reg prometheus.Registerer) *GeneralMetrics {
+	m := &GeneralMetrics{
+		bondedTokensGauge: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_bonded_tokens",
+				Help:        "Bonded tokens",
+				ConstLabels: ConstLabels,
+			},
+		),
+		notBondedTokensGauge: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_not_bonded_tokens",
+				Help:        "Not bonded tokens",
+				ConstLabels: ConstLabels,
+			},
+		),
+		communityPoolGauge: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_community_pool",
+				Help:        "Community pool",
+				ConstLabels: ConstLabels,
+			},
+			[]string{"denom"},
+		),
+		supplyTotalGauge: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_general_supply_total",
+				Help:        "Total supply",
+				ConstLabels: ConstLabels,
+			},
+			[]string{"denom"},
+		),
+		latestBlockHeight: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_latest_block_height",
+				Help:        "Latest block height",
+				ConstLabels: ConstLabels,
+			},
+		),
+		tokenPrice: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_token_price",
+				Help:        "Cosmos token price",
+				ConstLabels: ConstLabels,
+			},
+		),
+		govVotingPeriodProposals: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_gov_voting_period_proposals",
+				Help:        "Voting period proposals",
+				ConstLabels: ConstLabels,
+			},
+		),
+	}
+	reg.MustRegister(m.bondedTokensGauge)
+	reg.MustRegister(m.notBondedTokensGauge)
+	reg.MustRegister(m.communityPoolGauge)
+	reg.MustRegister(m.supplyTotalGauge)
 
-	generalBondedTokensGauge := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_bonded_tokens",
-			Help:        "Bonded tokens",
-			ConstLabels: ConstLabels,
-		},
-	)
+	// registry.MustRegister(generalInflationGauge)
+	// registry.MustRegister(generalAnnualProvisions)
 
-	generalNotBondedTokensGauge := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_not_bonded_tokens",
-			Help:        "Not bonded tokens",
-			ConstLabels: ConstLabels,
-		},
-	)
+	reg.MustRegister(m.latestBlockHeight)
+	reg.MustRegister(m.tokenPrice)
+	reg.MustRegister(m.govVotingPeriodProposals)
+	return m
 
-	generalCommunityPoolGauge := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_community_pool",
-			Help:        "Community pool",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"denom"},
-	)
-
-	generalSupplyTotalGauge := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_general_supply_total",
-			Help:        "Total supply",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"denom"},
-	)
 	/*
 		generalInflationGauge := prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -80,43 +117,8 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 
 	*/
 
-	generalLatestBlockHeight := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_latest_block_height",
-			Help:        "Latest block height",
-			ConstLabels: ConstLabels,
-		},
-	)
-
-	generalTokenPrice := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_token_price",
-			Help:        "Cosmos token price",
-			ConstLabels: ConstLabels,
-		},
-	)
-
-	paramsGovVotingPeriodProposals := prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_gov_voting_period_proposals",
-			Help:        "Voting period proposals",
-			ConstLabels: ConstLabels,
-		},
-	)
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(generalBondedTokensGauge)
-	registry.MustRegister(generalNotBondedTokensGauge)
-	registry.MustRegister(generalCommunityPoolGauge)
-	registry.MustRegister(generalSupplyTotalGauge)
-	// registry.MustRegister(generalInflationGauge)
-	// registry.MustRegister(generalAnnualProvisions)
-	registry.MustRegister(generalLatestBlockHeight)
-	registry.MustRegister(generalTokenPrice)
-	registry.MustRegister(paramsGovVotingPeriodProposals)
-
-	var wg sync.WaitGroup
-
+}
+func getGeneralMetrics(wg *sync.WaitGroup, sublogger *zerolog.Logger, metrics *GeneralMetrics, s *service) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -127,7 +129,7 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		price := chain.GetPriceUSD()
-		generalTokenPrice.Set(price)
+		metrics.tokenPrice.Set(price)
 	}()
 
 	wg.Add(1)
@@ -147,9 +149,8 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 			Float64("request-time", time.Since(queryStart).Seconds()).
 			Msg("Finished querying rpc status")
 
-		generalLatestBlockHeight.Set(float64(status.SyncInfo.LatestBlockHeight))
+		metrics.latestBlockHeight.Set(float64(status.SyncInfo.LatestBlockHeight))
 	}()
-
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -176,8 +177,8 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		notBondedTokensBigInt := response.Pool.NotBondedTokens.BigInt()
 		notBondedTokens, _ := new(big.Float).SetInt(notBondedTokensBigInt).Float64()
 
-		generalBondedTokensGauge.Set(bondedTokens)
-		generalNotBondedTokensGauge.Set(notBondedTokens)
+		metrics.bondedTokensGauge.Set(bondedTokens)
+		metrics.notBondedTokensGauge.Set(notBondedTokens)
 		//fmt.Println("response: ", response.Pool.BondedTokens)
 		//generalBondedTokensGauge.Set(float64(response.Pool.BondedTokens.Int64()))
 		//generalNotBondedTokensGauge.Set(float64(response.Pool.NotBondedTokens.Int64()))
@@ -209,7 +210,7 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 					Err(err).
 					Msg("Could not get community pool coin")
 			} else {
-				generalCommunityPoolGauge.With(prometheus.Labels{
+				metrics.communityPoolGauge.With(prometheus.Labels{
 					"denom": Denom,
 				}).Set(value / DenomCoefficient)
 			}
@@ -242,7 +243,7 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 					Err(err).
 					Msg("Could not get total supply")
 			} else {
-				generalSupplyTotalGauge.With(prometheus.Labels{
+				metrics.supplyTotalGauge.With(prometheus.Labels{
 					"denom": Denom,
 				}).Set(value / DenomCoefficient)
 			}
@@ -325,8 +326,24 @@ func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		proposalsCount := len(proposals.GetProposals())
-		paramsGovVotingPeriodProposals.Set(float64(proposalsCount))
+		metrics.govVotingPeriodProposals.Set(float64(proposalsCount))
 	}()
+
+}
+
+func (s *service) GeneralHandler(w http.ResponseWriter, r *http.Request) {
+	requestStart := time.Now()
+
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
+	registry := prometheus.NewRegistry()
+	generalMetrics := NewGeneralMetrics(registry)
+
+	var wg sync.WaitGroup
+
+	getGeneralMetrics(&wg, &sublogger, generalMetrics, s)
 
 	wg.Wait()
 

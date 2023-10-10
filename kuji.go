@@ -3,44 +3,44 @@ package main
 
 import (
 	"context"
+	oracletypes "github.com/Team-Kujira/core/x/oracle/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rs/zerolog"
 	"net/http"
 	"sync"
 	"time"
 
-	oracletypes "github.com/Team-Kujira/core/x/oracle/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 /*
-type voteMissCounter struct {
-	MissCount string `json:"miss_count"`
-}
+	type voteMissCounter struct {
+		MissCount string `json:"miss_count"`
+	}
 */
+type KujiMetrics struct {
+	votePenaltyCount *prometheus.CounterVec
+}
 
-func (s *service) KujiraMetricHandler(w http.ResponseWriter, r *http.Request) {
-	requestStart := time.Now()
+func NewKujiMetrics(reg prometheus.Registerer) *KujiMetrics {
+	m := &KujiMetrics{
+		votePenaltyCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name:        "cosmos_kujira_oracle_vote_miss_count",
+				Help:        "Vote miss count",
+				ConstLabels: ConstLabels,
+			},
+			[]string{"type"},
+		),
+	}
 
-	sublogger := log.With().
-		Str("request-id", uuid.New().String()).
-		Logger()
+	reg.MustRegister(m.votePenaltyCount)
 
-	address := r.URL.Query().Get("address")
-
-	votePenaltyCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name:        "cosmos_kujira_oracle_vote_miss_count",
-			Help:        "Vote miss count",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"type"},
-	)
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(votePenaltyCount)
-
-	var wg sync.WaitGroup
+	return m
+}
+func getKujiMetrics(wg *sync.WaitGroup, sublogger *zerolog.Logger, metrics *KujiMetrics, s *service, validatorAddress sdk.ValAddress) {
 	wg.Add(1)
 
 	go func() {
@@ -49,7 +49,7 @@ func (s *service) KujiraMetricHandler(w http.ResponseWriter, r *http.Request) {
 		queryStart := time.Now()
 
 		oracleClient := oracletypes.NewQueryClient(s.grpcConn)
-		response, err := oracleClient.MissCounter(context.Background(), &oracletypes.QueryMissCounterRequest{ValidatorAddr: address})
+		response, err := oracleClient.MissCounter(context.Background(), &oracletypes.QueryMissCounterRequest{ValidatorAddr: validatorAddress.String()})
 
 		if err != nil {
 			sublogger.Error().
@@ -64,9 +64,32 @@ func (s *service) KujiraMetricHandler(w http.ResponseWriter, r *http.Request) {
 
 		missCount := float64(response.MissCounter)
 
-		votePenaltyCount.WithLabelValues("miss").Add(missCount)
+		metrics.votePenaltyCount.WithLabelValues("miss").Add(missCount)
 
 	}()
+}
+func (s *service) KujiraMetricHandler(w http.ResponseWriter, r *http.Request) {
+	requestStart := time.Now()
+
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
+	address := r.URL.Query().Get("address")
+	myAddress, err := sdk.ValAddressFromBech32(address)
+	if err != nil {
+		sublogger.Error().
+			Str("address", address).
+			Err(err).
+			Msg("Could not get address")
+		return
+	}
+	registry := prometheus.NewRegistry()
+	kujiMetrics := NewKujiMetrics(registry)
+
+	var wg sync.WaitGroup
+	getKujiMetrics(&wg, &sublogger, kujiMetrics, s, myAddress)
+
 	wg.Wait()
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

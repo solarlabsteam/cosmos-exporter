@@ -2,37 +2,37 @@ package main
 
 import (
 	"context"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	"github.com/rs/zerolog"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
-	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
-	requestStart := time.Now()
+type UpgradeMetrics struct {
+	upgradePlanGauge *prometheus.GaugeVec
+}
 
-	sublogger := log.With().
-		Str("request-id", uuid.New().String()).
-		Logger()
-
-	upgradePlanGauge := prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name:        "cosmos_upgrade_plan",
-			Help:        "Upgrade plan info in height",
-			ConstLabels: ConstLabels,
-		},
-		[]string{"info", "name", "height", "estimated_time"},
-	)
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(upgradePlanGauge)
-
-	var wg sync.WaitGroup
+func NewUpgradeMetrics(reg prometheus.Registerer) *UpgradeMetrics {
+	m := &UpgradeMetrics{
+		upgradePlanGauge: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name:        "cosmos_upgrade_plan",
+				Help:        "Upgrade plan info in height",
+				ConstLabels: ConstLabels,
+			},
+			[]string{"info", "name", "height", "estimated_time"},
+		),
+	}
+	reg.MustRegister(m.upgradePlanGauge)
+	return m
+}
+func getUpgradeMetrics(wg *sync.WaitGroup, sublogger *zerolog.Logger, metrics *UpgradeMetrics, s *service) {
 
 	wg.Add(1)
 	go func() {
@@ -56,7 +56,7 @@ func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 			Msg("Finished querying upgrade plan")
 
 		if upgradeRes.Plan == nil {
-			upgradePlanGauge.With(prometheus.Labels{
+			metrics.upgradePlanGauge.With(prometheus.Labels{
 				"info":           "None",
 				"name":           "None",
 				"height":         "",
@@ -77,7 +77,7 @@ func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 		remainingHeight := upgradeHeight - cs.LatestBlockHeight()
 
 		if remainingHeight <= 0 {
-			upgradePlanGauge.With(prometheus.Labels{
+			metrics.upgradePlanGauge.With(prometheus.Labels{
 				"info":           "None",
 				"name":           "None",
 				"height":         "",
@@ -93,13 +93,27 @@ func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
 				Msg("Could not get estimated time")
 		}
 
-		upgradePlanGauge.With(prometheus.Labels{
+		metrics.upgradePlanGauge.With(prometheus.Labels{
 			"info":           upgradeRes.Plan.Info,
 			"name":           upgradeRes.Plan.Name,
 			"height":         strconv.FormatInt(upgradeHeight, 10),
 			"estimated_time": estimatedTime.Local().Format(time.RFC1123),
 		}).Set(float64(remainingHeight))
 	}()
+
+}
+func (s *service) UpgradeHandler(w http.ResponseWriter, r *http.Request) {
+	requestStart := time.Now()
+
+	sublogger := log.With().
+		Str("request-id", uuid.New().String()).
+		Logger()
+
+	registry := prometheus.NewRegistry()
+	upgradeMetrics := NewUpgradeMetrics(registry)
+
+	var wg sync.WaitGroup
+	getUpgradeMetrics(&wg, &sublogger, upgradeMetrics, s)
 
 	wg.Wait()
 

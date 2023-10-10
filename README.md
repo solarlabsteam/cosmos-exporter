@@ -5,6 +5,29 @@
 
 cosmos-exporter is a Prometheus scraper that fetches the data from a full node of a Cosmos-based blockchain via gRPC.
 
+There are two modes to run this in 'single' mode, and 'detailed' mode
+
+# Single mode
+the aim of single mode is that all the configuration happens when you run exporter itself, not in the prometheus configuration. 
+so you specify the validators, wallets, and so on the command line, and simply configure the prometheus to do a single call to /metrics 
+I find it easier to do this (configure the binary for each chain) than to do it in prometheus.
+
+## Enabling single mode
+when starting cosmos-exporter you can pass **single** to enable it.
+
+by default, it will work the same as /metrics/general
+
+### single mode parameters
+* single - enable single metric mode. If this is not enabled, it will ignore the other parameters
+* params - also include the details of the chain parameters
+* validators - include basic information for validators listed. (basic is mainly operational things I use to alert on)
+* oracle - oracle misses (for kujira only)
+* upgrades - upcoming chain upgrades
+* proposals - active proposals (/metrics/proposals includes the last N proposals)
+* wallets - includes balance of ''denom'' coin. (/metrics/wallets includes all balances)
+
+# Detailed mode
+This mode can still be used alongside 'single' mode as well.
 ## What can I use it for?
 
 You can run a full node, run cosmos-exporter on the same host, set up Prometheus to scrape the data from it (see below for instructions), then set up Grafana to visualize the data coming from the exporter and probably add some alerting. Here are some examples of Grafana dashboards we created for ourselves:
@@ -23,7 +46,7 @@ tar xvfz cosmos-exporter-*
 ./cosmos-exporter
 ```
 
-That's not really interesting, what you probably want to do is to have it running in the background. For that, first of all, we have to copy the file to the system apps folder:
+That isn't really fascinating, what you probably want to do is to have it running in the background. For that, first of all, we have to copy the file to the system apps folder:
 
 ```sh
 sudo cp ./cosmos-exporter /usr/bin
@@ -71,7 +94,7 @@ If you need to, you can also see the logs of the process:
 sudo journalctl -u cosmos-exporter -f --output cat
 ```
 
-## How can I scrape data from it?
+## How can I scrape data from it? (original)
 
 Here's the example of the Prometheus config you can use for scraping data:
 
@@ -117,7 +140,7 @@ scrape-configs:
 
 Then restart Prometheus and you're good to go!
 
-All of the metrics provided by cosmos-exporter have the following prefixes:
+All the metrics provided by cosmos-exporter have the following prefixes:
 - `cosmos_validator_*` - metrics related to a single validator
 - `cosmos_validators_*` - metrics related to a validator set
 - `cosmos_wallet_*` - metrics related to a single wallet
@@ -128,7 +151,7 @@ It queries the full node via gRPC and returns it in the format Prometheus can co
 
 ## How can I configure it?
 
-You can pass the artuments to the executable file to configure it. Here is the parameters list:
+You can pass the arguments to the executable file to configure it. Here is the parameters list:
 
 - `--bech-prefix` - the global prefix for addresses. Defaults to `persistence`
 - `--denom` - the currency, for example, `uatom` for Cosmos. Defaults to `uxprt`
@@ -169,3 +192,4 @@ In theory, it should work on a Cosmos-based blockchains with cosmos-sdk >= 0.40.
 ## How can I contribute?
 
 Bug reports and feature requests are always welcome! If you want to contribute, feel free to open issues or PRs.
+

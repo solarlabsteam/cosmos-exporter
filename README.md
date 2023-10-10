@@ -162,6 +162,26 @@ An example of the network where you have to specify all the prefixes manually is
 
 Additionally, you can pass a `--config` flag with a path to your config file (I use `.toml`, but anything supported by [viper](https://github.com/spf13/viper) should work).
 
+## TLS endpoint
+
+** EXPERIMENTAL **
+
+The exporter supports TLS via a new web configuration file.
+
+```console
+./cosmos-exporter --web-config=web-config.yml
+```
+### Web config example
+```toml
+tls_server_config:
+  cert_file: /path/to/server.crt
+  key_file: /path/to/server.key
+
+basic_auth_users:
+  prometheus: "$2y$10$QOauhQNbBCuQDKes6eFzPeMqBSjb7Mr5DUmpZ/VcEd00UAV/LDeSi"
+```
+See the [exporter-toolkit https package](https://github.com/prometheus/exporter-toolkit/blob/v0.1.0/https/README.md) for more details.
+
 ## Which networks this is guaranteed to work?
 
 In theory, it should work on a Cosmos-based blockchains with cosmos-sdk >= 0.40.0 (that's when they added gRPC and IBC support). If this doesn't work on some chains, please file and issue and let's see what's up.

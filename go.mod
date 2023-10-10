@@ -8,8 +8,10 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
 
 require (
 	github.com/cosmos/cosmos-sdk v0.42.4
+	github.com/go-kit/log v0.2.1
 	github.com/google/uuid v1.2.0
-	github.com/prometheus/client_golang v1.8.0
+	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/exporter-toolkit v0.7.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5

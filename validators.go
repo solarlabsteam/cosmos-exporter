@@ -151,13 +151,14 @@ func ValidatorsHandler(w http.ResponseWriter, r *http.Request, grpcConn *grpc.Cl
 			Msg("Finished querying validators")
 		validators = validatorsResponse.Validators
 
-		// sorting by delegator shares to display rankings
+		// sorting by delegator shares to display rankings (unbonded go last)
 		sort.Slice(validators, func(i, j int) bool {
-			if validators[i].DelegatorShares.BigInt().Cmp(validators[j].DelegatorShares.BigInt()) > 0 {
-				return true
-			} else {
+			if !validators[i].IsBonded() && validators[j].IsBonded() {
 				return false
+			} else if validators[i].IsBonded() && !validators[j].IsBonded() {
+				return true
 			}
+			return validators[i].DelegatorShares.BigInt().Cmp(validators[j].DelegatorShares.BigInt()) > 0
 		})
 	}()
 
